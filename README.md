@@ -17,6 +17,7 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Displays the limit reset date and time in your local timezone.
 - Uses a green, amber, or red indicator according to the remaining usage.
 - Refreshes automatically every 30 seconds or manually from the tray menu.
+- Opens the Windows setting used to keep its icon permanently visible.
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
 
@@ -34,6 +35,7 @@ The app has no main window. After starting it, look for the circular indicator n
 
 - **Left-click:** show the current usage summary.
 - **Right-click:** refresh, open the Codex sessions folder, enable startup with Windows, or exit.
+- **Show always in the system tray:** opens the Windows taskbar setting where you can promote Codex Usage Meter out of the hidden-icons menu.
 
 If the icon reports that no data is available, run at least one Codex task and select **Update now**.
 

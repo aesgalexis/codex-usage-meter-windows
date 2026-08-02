@@ -6,6 +6,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-02
+
+### Added
+
+- Tray menu shortcut and guidance for keeping the icon permanently visible through the supported Windows taskbar setting.
+
 ## [0.1.0] - 2026-08-02
 
 ### Added

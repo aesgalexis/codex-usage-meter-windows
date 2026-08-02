@@ -51,6 +51,8 @@ public sealed class UsageApplication : System.Windows.Application
         refresh.Click += async (_, _) => await RefreshAsync();
         var openSessions = new Forms.ToolStripMenuItem("Abrir sesiones de Codex");
         openSessions.Click += (_, _) => OpenSessionsFolder();
+        var keepVisible = new Forms.ToolStripMenuItem("Mostrar siempre en la bandeja…");
+        keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
         var exit = new Forms.ToolStripMenuItem("Salir");
         exit.Click += (_, _) => Shutdown();
 
@@ -62,6 +64,7 @@ public sealed class UsageApplication : System.Windows.Application
             new Forms.ToolStripSeparator(),
             refresh,
             openSessions,
+            keepVisible,
             _startupItem,
             new Forms.ToolStripSeparator(),
             exit
@@ -147,6 +150,17 @@ public sealed class UsageApplication : System.Windows.Application
         {
             Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
         }
+    }
+
+    private static void OpenTrayVisibilitySettings()
+    {
+        Forms.MessageBox.Show(
+            "Windows controla qué iconos permanecen visibles. En la configuración de la barra de tareas, busca los otros iconos de la bandeja y activa Codex Usage Meter.",
+            "Mostrar siempre Codex Usage Meter",
+            Forms.MessageBoxButtons.OK,
+            Forms.MessageBoxIcon.Information);
+
+        Process.Start(new ProcessStartInfo("ms-settings:taskbar") { UseShellExecute = true });
     }
 
     private static bool IsStartupEnabled()
