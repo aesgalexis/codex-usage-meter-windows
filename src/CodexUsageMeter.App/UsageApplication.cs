@@ -30,7 +30,7 @@ public sealed class UsageApplication : System.Windows.Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        _notifyIcon.Text = "Codex Usage Meter — buscando datos…";
+        _notifyIcon.Text = "Codex Usage Meter: buscando datos…";
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.MouseClick += OnTrayMouseClick;
@@ -88,7 +88,7 @@ public sealed class UsageApplication : System.Windows.Application
                 _resetItem.Text = snapshot.ResetsAt is { } reset
                     ? $"Se reinicia: {reset.ToLocalTime():g}"
                     : "Reinicio: sin datos";
-                _notifyIcon.Text = TruncateTooltip($"Codex — {available}% disponible");
+                _notifyIcon.Text = TruncateTooltip($"Codex: {available}% disponible");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
             }
             else
@@ -96,7 +96,7 @@ public sealed class UsageApplication : System.Windows.Application
                 _latest = null;
                 _statusItem.Text = result.Error ?? "No hay datos de uso";
                 _resetItem.Text = "Abre Codex y ejecuta al menos una tarea";
-                _notifyIcon.Text = TruncateTooltip("Codex Usage Meter — sin datos");
+                _notifyIcon.Text = TruncateTooltip("Codex Usage Meter: sin datos");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
             }
         }

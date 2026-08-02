@@ -6,6 +6,8 @@
 
 A small, privacy-friendly Windows tray application that shows your latest Codex usage limit at a glance.
 
+![Codex Usage Meter tray menu](docs/assets/tray-menu.png)
+
 > [!IMPORTANT]
 > This is an early development version. The app reads rate-limit snapshots written by Codex to local session files. That file format is not a documented public API and may change in future Codex versions.
 
@@ -22,7 +24,7 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 
 ### Portable release
 
-Download the latest Windows ZIP from [Releases](https://github.com/aesgalexis/codex-usage-meter-windows/releases), extract it, and run `CodexUsageMeter.App.exe`.
+Download the latest Windows ZIP from [Releases](https://github.com/aesgalexis/codex-usage-meter-windows/releases), extract it, and run `CodexUsageMeter.exe`.
 
 Published builds are self-contained: the destination PC does not need the .NET runtime installed. Until the first release is available, use the development instructions below.
 
@@ -93,10 +95,7 @@ Create a self-contained portable build:
 
 ```powershell
 dotnet publish .\src\CodexUsageMeter.App\CodexUsageMeter.App.csproj `
-  --configuration Release `
-  --runtime win-x64 `
-  --self-contained true `
-  -p:PublishSingleFile=true `
+  -p:PublishProfile=win-x64 `
   --output .\artifacts\win-x64
 ```
 

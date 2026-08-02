@@ -24,10 +24,7 @@ jobs:
       - name: Publish self-contained app
         run: >-
           dotnet publish src/CodexUsageMeter.App/CodexUsageMeter.App.csproj
-          --configuration Release
-          --runtime win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
+          -p:PublishProfile=win-x64
           --output artifacts/win-x64
       - name: Create ZIP
         shell: pwsh
