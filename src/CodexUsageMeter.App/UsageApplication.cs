@@ -31,7 +31,6 @@ public sealed class UsageApplication : System.Windows.Application
     private Forms.ToolStripMenuItem _disabledWidgetItem = null!;
     private Forms.ToolStripMenuItem _normalWidgetItem = null!;
     private Forms.ToolStripMenuItem _compactWidgetItem = null!;
-    private Forms.ToolStripMenuItem _animateActivityItem = null!;
     private UsageFlyoutWindow? _flyout;
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
@@ -90,8 +89,6 @@ public sealed class UsageApplication : System.Windows.Application
         var title = new Forms.ToolStripMenuItem("Codex Usage Meter") { Enabled = false };
         var refresh = new Forms.ToolStripMenuItem(AppText.Get("Refresh"));
         refresh.Click += async (_, _) => await RefreshAsync();
-        var openSessions = new Forms.ToolStripMenuItem(AppText.Get("OpenSessions"));
-        openSessions.Click += (_, _) => OpenSessionsFolder();
         var keepVisible = new Forms.ToolStripMenuItem(AppText.Get("KeepTray"));
         keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
         var notifications = BuildNotificationsMenu();
@@ -111,7 +108,6 @@ public sealed class UsageApplication : System.Windows.Application
             _resetItem,
             new Forms.ToolStripSeparator(),
             refresh,
-            openSessions,
             keepVisible,
             notifications,
             _widgetItem,
@@ -130,20 +126,13 @@ public sealed class UsageApplication : System.Windows.Application
         _disabledWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Disabled")) { CheckOnClick = true };
         _normalWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Normal")) { CheckOnClick = true };
         _compactWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Compact")) { CheckOnClick = true };
-        _animateActivityItem = new Forms.ToolStripMenuItem(AppText.Get("AnimateActivity")) { CheckOnClick = true, Checked = _settings.AnimateCodexActivity };
         _disabledWidgetItem.Checked = !_settings.WidgetEnabled;
         _normalWidgetItem.Checked = _settings.WidgetEnabled && !_settings.WidgetCompact;
         _compactWidgetItem.Checked = _settings.WidgetEnabled && _settings.WidgetCompact;
         _normalWidgetItem.Click += (_, _) => SetWidgetMode(true, false);
         _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, true);
         _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, false);
-        _animateActivityItem.CheckedChanged += (_, _) =>
-        {
-            _settings.AnimateCodexActivity = _animateActivityItem.Checked;
-            _settingsStore.Save(_settings);
-            _flyout?.SetActivity(_settings.AnimateCodexActivity && _activityDetected);
-        };
-        menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem, new Forms.ToolStripSeparator(), _animateActivityItem]);
+        menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem]);
         return menu;
     }
 
@@ -347,13 +336,10 @@ public sealed class UsageApplication : System.Windows.Application
     {
         Dispatcher.BeginInvoke(() =>
         {
-            if (_settings.AnimateCodexActivity)
-            {
-                _activityDetected = true;
-                _activityTimer.Stop();
-                _activityTimer.Start();
-                _flyout?.SetActivity(true);
-            }
+            _activityDetected = true;
+            _activityTimer.Stop();
+            _activityTimer.Start();
+            _flyout?.SetActivity(true);
             _fileChangeTimer.Stop();
             _fileChangeTimer.Start();
         });
@@ -405,7 +391,7 @@ public sealed class UsageApplication : System.Windows.Application
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetCompact(_settings.WidgetCompact);
-        _flyout.SetActivity(_settings.AnimateCodexActivity && _activityDetected);
+        _flyout.SetActivity(_activityDetected);
         _flyout.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
@@ -514,15 +500,6 @@ public sealed class UsageApplication : System.Windows.Application
     }
 
     private static string TruncateTooltip(string value) => value[..Math.Min(value.Length, 63)];
-
-    private static void OpenSessionsFolder()
-    {
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex", "sessions");
-        if (Directory.Exists(path))
-        {
-            Process.Start(new ProcessStartInfo("explorer.exe", path) { UseShellExecute = true });
-        }
-    }
 
     private static void OpenTrayVisibilitySettings()
     {

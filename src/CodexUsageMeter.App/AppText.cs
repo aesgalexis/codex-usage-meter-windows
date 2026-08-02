@@ -12,7 +12,7 @@ public static class AppText
         ["ShowPinned"] = "Show pinned widget", ["Available"] = "Available: {0}%  ·  Used: {1}%",
         ["ResetAt"] = "Resets: {0}", ["NoReset"] = "Reset: no data", ["NoUsage"] = "No usage data",
         ["RunTask"] = "Open Codex and run at least one task", ["Refresh"] = "Refresh now",
-        ["OpenSessions"] = "Open Codex sessions", ["KeepTray"] = "Always show in system tray...",
+        ["KeepTray"] = "Always show in system tray...",
         ["Notifications"] = "Notifications", ["NotifyChange"] = "When the percentage changes",
         ["Notify50"] = "At 50% used", ["Notify75"] = "At 75% used", ["Notify90"] = "At 90% used",
         ["NotifyReset"] = "When the limit resets", ["Exit"] = "Exit", ["Widget"] = "Widget",
@@ -30,7 +30,7 @@ public static class AppText
         ["OneReset"] = "1 reset available", ["ManyResets"] = "{0} resets available",
         ["Credits"] = "Credits: {0}", ["NoCredits"] = "Credits: no data", ["Stale"] = "Stale",
         ["JustNow"] = "just now", ["MinutesAgo"] = "{0} min ago", ["HoursAgo"] = "{0} h ago", ["DaysAgo"] = "{0} d ago",
-        ["WindowUsed"] = "{0} {1}%", ["AnimateActivity"] = "Animate Codex activity", ["SessionsMissing"] = "Codex is not installed or has no sessions",
+        ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex is not installed or has no sessions",
         ["NoSnapshots"] = "Waiting for a Codex usage snapshot", ["ReadError"] = "Temporary session read error", ["AccessDenied"] = "Codex sessions cannot be accessed"
     };
 
@@ -40,7 +40,7 @@ public static class AppText
         ["ShowPinned"] = "Mostrar widget fijo", ["Available"] = "Disponible: {0}%  ·  Usado: {1}%",
         ["ResetAt"] = "Se reinicia: {0}", ["NoReset"] = "Reinicio: sin datos", ["NoUsage"] = "No hay datos de uso",
         ["RunTask"] = "Abre Codex y ejecuta al menos una tarea", ["Refresh"] = "Actualizar ahora",
-        ["OpenSessions"] = "Abrir sesiones de Codex", ["KeepTray"] = "Mostrar siempre en la bandeja...",
+        ["KeepTray"] = "Mostrar siempre en la bandeja...",
         ["Notifications"] = "Notificaciones", ["NotifyChange"] = "Al cambiar el porcentaje",
         ["Notify50"] = "Al alcanzar 50 % usado", ["Notify75"] = "Al alcanzar 75 % usado", ["Notify90"] = "Al alcanzar 90 % usado",
         ["NotifyReset"] = "Al restablecerse el límite", ["Exit"] = "Salir", ["Widget"] = "Widget",
@@ -58,7 +58,7 @@ public static class AppText
         ["OneReset"] = "1 reset disponible", ["ManyResets"] = "{0} resets disponibles",
         ["Credits"] = "Créditos: {0}", ["NoCredits"] = "Créditos: sin datos", ["Stale"] = "Desactualizado",
         ["JustNow"] = "ahora", ["MinutesAgo"] = "hace {0} min", ["HoursAgo"] = "hace {0} h", ["DaysAgo"] = "hace {0} d",
-        ["WindowUsed"] = "{0} {1}%", ["AnimateActivity"] = "Animar actividad de Codex", ["SessionsMissing"] = "Codex no está instalado o no tiene sesiones",
+        ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex no está instalado o no tiene sesiones",
         ["NoSnapshots"] = "Esperando datos de uso de Codex", ["ReadError"] = "Error temporal al leer las sesiones", ["AccessDenied"] = "No se puede acceder a las sesiones de Codex"
     };
 

@@ -73,7 +73,7 @@ The app has no main window. After starting it, look for the circular indicator n
 - **Default behavior:** no widget is shown; right-click opens the original tray menu and left-click shows the usage balloon.
 - **Widget:** choose Disabled, Normal or Compact. The chosen design is used for both hover and pinned display.
 - **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
-- **Right-click:** pin or hide the widget, refresh, open the Codex sessions folder, enable startup with Windows, or exit.
+- **Right-click:** pin or hide the widget, refresh, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting directly, where you can promote Codex Usage Meter out of the hidden-icons menu.
 - **Notifications:** enables or disables percentage changes, individual warning thresholds, and reset notices.
 

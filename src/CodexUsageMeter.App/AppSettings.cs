@@ -13,7 +13,6 @@ public sealed class AppSettings
     public bool WidgetPinned { get; set; }
     public bool WidgetEnabled { get; set; }
     public bool WidgetCompact { get; set; }
-    public bool AnimateCodexActivity { get; set; }
     public double? WidgetLeft { get; set; }
     public double? WidgetTop { get; set; }
 
