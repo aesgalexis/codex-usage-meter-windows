@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <StartupObject>CodexUsageMeter.App.Program</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\CodexUsageMeter.Core\CodexUsageMeter.Core.csproj" />
+    <ProjectReference Include="..\CodexUsageMeter.Infrastructure\CodexUsageMeter.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

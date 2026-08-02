@@ -1,0 +1,36 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodexUsageMeter.Core", "src\CodexUsageMeter.Core\CodexUsageMeter.Core.csproj", "{2BFD88A9-A184-4708-961D-B2D1D02E0BEC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodexUsageMeter.Infrastructure", "src\CodexUsageMeter.Infrastructure\CodexUsageMeter.Infrastructure.csproj", "{34487BF9-4A6D-4D35-BE78-FF7E699587E4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodexUsageMeter.App", "src\CodexUsageMeter.App\CodexUsageMeter.App.csproj", "{2EE74977-30EE-47AF-BCF8-C67CE935E56C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodexUsageMeter.Tests", "tests\CodexUsageMeter.Tests\CodexUsageMeter.Tests.csproj", "{174A61A6-2CB9-44D5-A54E-2779BD913EBC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2BFD88A9-A184-4708-961D-B2D1D02E0BEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BFD88A9-A184-4708-961D-B2D1D02E0BEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BFD88A9-A184-4708-961D-B2D1D02E0BEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BFD88A9-A184-4708-961D-B2D1D02E0BEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34487BF9-4A6D-4D35-BE78-FF7E699587E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34487BF9-4A6D-4D35-BE78-FF7E699587E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34487BF9-4A6D-4D35-BE78-FF7E699587E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34487BF9-4A6D-4D35-BE78-FF7E699587E4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2EE74977-30EE-47AF-BCF8-C67CE935E56C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2EE74977-30EE-47AF-BCF8-C67CE935E56C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2EE74977-30EE-47AF-BCF8-C67CE935E56C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2EE74977-30EE-47AF-BCF8-C67CE935E56C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{174A61A6-2CB9-44D5-A54E-2779BD913EBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{174A61A6-2CB9-44D5-A54E-2779BD913EBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{174A61A6-2CB9-44D5-A54E-2779BD913EBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{174A61A6-2CB9-44D5-A54E-2779BD913EBC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

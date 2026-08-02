@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Verify
+        run: |
+          dotnet build CodexUsageMeter.sln --configuration Release
+          dotnet run --project tests/CodexUsageMeter.Tests/CodexUsageMeter.Tests.csproj --configuration Release --no-build
+      - name: Publish self-contained app
+        run: >-
+          dotnet publish src/CodexUsageMeter.App/CodexUsageMeter.App.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          --output artifacts/win-x64
+      - name: Create ZIP
+        shell: pwsh
+        run: Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/CodexUsageMeter-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CodexUsageMeter-win-x64
+          path: artifacts/CodexUsageMeter-win-x64.zip
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" artifacts/CodexUsageMeter-win-x64.zip --generate-notes --verify-tag
