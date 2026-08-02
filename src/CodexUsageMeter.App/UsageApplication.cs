@@ -16,19 +16,24 @@ public sealed class UsageApplication : System.Windows.Application
     private const string StartupKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string StartupValueName = "CodexUsageMeter";
     private readonly IUsageProvider _provider = new CodexSessionUsageProvider();
+    private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+    private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
     private readonly Forms.NotifyIcon _notifyIcon = new() { Visible = true };
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _startupItem = new("Iniciar con Windows") { CheckOnClick = true };
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
+    private AppSettings _settings = new();
+    private FileSystemWatcher? _sessionWatcher;
     private bool _isRefreshing;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        _settings = _settingsStore.Load();
 
         _notifyIcon.Text = "Codex Usage Meter: buscando datos…";
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
@@ -39,6 +44,12 @@ public sealed class UsageApplication : System.Windows.Application
         _startupItem.CheckedChanged += (_, _) => SetStartupEnabled(_startupItem.Checked);
 
         _refreshTimer.Tick += async (_, _) => await RefreshAsync();
+        _fileChangeTimer.Tick += async (_, _) =>
+        {
+            _fileChangeTimer.Stop();
+            await RefreshAsync();
+        };
+        EnsureSessionWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
     }
@@ -53,6 +64,7 @@ public sealed class UsageApplication : System.Windows.Application
         openSessions.Click += (_, _) => OpenSessionsFolder();
         var keepVisible = new Forms.ToolStripMenuItem("Mostrar siempre en la bandeja…");
         keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
+        var notifications = BuildNotificationsMenu();
         var exit = new Forms.ToolStripMenuItem("Salir");
         exit.Click += (_, _) => Shutdown();
 
@@ -65,11 +77,58 @@ public sealed class UsageApplication : System.Windows.Application
             refresh,
             openSessions,
             keepVisible,
+            notifications,
             _startupItem,
             new Forms.ToolStripSeparator(),
             exit
         ]);
         return menu;
+    }
+
+    private Forms.ToolStripMenuItem BuildNotificationsMenu()
+    {
+        var menu = new Forms.ToolStripMenuItem("Notificaciones");
+        menu.DropDownItems.Add(CreateNotificationOption(
+            "Al cambiar el porcentaje",
+            _settings.NotifyOnPercentChange,
+            value => _settings.NotifyOnPercentChange = value));
+        menu.DropDownItems.Add(new Forms.ToolStripSeparator());
+        menu.DropDownItems.Add(CreateNotificationOption(
+            "Al alcanzar 50 % usado",
+            _settings.NotifyAt50Percent,
+            value => _settings.NotifyAt50Percent = value));
+        menu.DropDownItems.Add(CreateNotificationOption(
+            "Al alcanzar 75 % usado",
+            _settings.NotifyAt75Percent,
+            value => _settings.NotifyAt75Percent = value));
+        menu.DropDownItems.Add(CreateNotificationOption(
+            "Al alcanzar 90 % usado",
+            _settings.NotifyAt90Percent,
+            value => _settings.NotifyAt90Percent = value));
+        menu.DropDownItems.Add(new Forms.ToolStripSeparator());
+        menu.DropDownItems.Add(CreateNotificationOption(
+            "Al restablecerse el límite",
+            _settings.NotifyOnReset,
+            value => _settings.NotifyOnReset = value));
+        return menu;
+    }
+
+    private Forms.ToolStripMenuItem CreateNotificationOption(
+        string text,
+        bool initialValue,
+        Action<bool> update)
+    {
+        var item = new Forms.ToolStripMenuItem(text)
+        {
+            Checked = initialValue,
+            CheckOnClick = true
+        };
+        item.CheckedChanged += (_, _) =>
+        {
+            update(item.Checked);
+            _settingsStore.Save(_settings);
+        };
+        return item;
     }
 
     private async Task RefreshAsync()
@@ -85,6 +144,10 @@ public sealed class UsageApplication : System.Windows.Application
             var result = await _provider.GetLatestAsync();
             if (result.Snapshot is { } snapshot)
             {
+                var notification = UsageNotificationEvaluator.Evaluate(
+                    _latest,
+                    snapshot,
+                    _settings.ToNotificationOptions());
                 _latest = snapshot;
                 var available = (int)Math.Round(snapshot.AvailablePercent);
                 _statusItem.Text = $"Disponible: {available}%  ·  Usado: {snapshot.UsedPercent:0.#}%";
@@ -93,6 +156,7 @@ public sealed class UsageApplication : System.Windows.Application
                     : "Reinicio: sin datos";
                 _notifyIcon.Text = TruncateTooltip($"Codex: {available}% disponible");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
+                ShowUsageNotification(notification, snapshot);
             }
             else
             {
@@ -105,8 +169,85 @@ public sealed class UsageApplication : System.Windows.Application
         }
         finally
         {
+            EnsureSessionWatcher();
             _isRefreshing = false;
         }
+    }
+
+    private void ShowUsageNotification(UsageNotification? notification, UsageSnapshot snapshot)
+    {
+        if (notification is null)
+        {
+            return;
+        }
+
+        _notifyIcon.BalloonTipTitle = notification.Kind switch
+        {
+            UsageNotificationKind.ThresholdReached => $"Codex ha alcanzado {notification.Threshold}% de uso",
+            UsageNotificationKind.LimitReset => "El límite de Codex se ha restablecido",
+            _ => "El uso de Codex ha cambiado"
+        };
+        _notifyIcon.BalloonTipText = $"{snapshot.AvailablePercent:0}% disponible ({snapshot.UsedPercent:0.#}% usado).";
+        _notifyIcon.ShowBalloonTip(5000);
+    }
+
+    private void EnsureSessionWatcher()
+    {
+        if (_sessionWatcher is not null)
+        {
+            return;
+        }
+
+        var sessionsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".codex",
+            "sessions");
+        if (!Directory.Exists(sessionsPath))
+        {
+            return;
+        }
+
+        try
+        {
+            _sessionWatcher = new FileSystemWatcher(sessionsPath, "*.jsonl")
+            {
+                IncludeSubdirectories = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                EnableRaisingEvents = true
+            };
+            _sessionWatcher.Changed += OnSessionFileChanged;
+            _sessionWatcher.Created += OnSessionFileChanged;
+            _sessionWatcher.Renamed += OnSessionFileChanged;
+            _sessionWatcher.Error += OnSessionWatcherError;
+        }
+        catch (IOException)
+        {
+            _sessionWatcher?.Dispose();
+            _sessionWatcher = null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            _sessionWatcher?.Dispose();
+            _sessionWatcher = null;
+        }
+    }
+
+    private void OnSessionFileChanged(object sender, FileSystemEventArgs e)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            _fileChangeTimer.Stop();
+            _fileChangeTimer.Start();
+        });
+    }
+
+    private void OnSessionWatcherError(object sender, ErrorEventArgs e)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            _sessionWatcher?.Dispose();
+            _sessionWatcher = null;
+        });
     }
 
     private void OnTrayMouseClick(object? sender, Forms.MouseEventArgs e)
@@ -185,6 +326,8 @@ public sealed class UsageApplication : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         _refreshTimer.Stop();
+        _fileChangeTimer.Stop();
+        _sessionWatcher?.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _currentIcon?.Dispose();

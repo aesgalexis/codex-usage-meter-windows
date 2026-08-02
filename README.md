@@ -16,7 +16,8 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Shows the available and used Codex percentages in the Windows notification area.
 - Displays the limit reset date and time in your local timezone.
 - Uses a green, amber, or red indicator according to the remaining usage.
-- Refreshes automatically every 30 seconds or manually from the tray menu.
+- Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
+- Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.
 - Opens the Windows setting used to keep its icon permanently visible.
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
@@ -36,6 +37,7 @@ The app has no main window. After starting it, look for the circular indicator n
 - **Left-click:** show the current usage summary.
 - **Right-click:** refresh, open the Codex sessions folder, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting where you can promote Codex Usage Meter out of the hidden-icons menu.
+- **Notifications:** enables or disables percentage changes, individual warning thresholds, and reset notices.
 
 If the icon reports that no data is available, run at least one Codex task and select **Update now**.
 
@@ -61,6 +63,7 @@ The reader is isolated behind an `IUsageProvider` interface so it can be replace
 - Session contents and usage values never leave the computer.
 - This project does not include its own analytics or telemetry.
 - The optional start-with-Windows setting is stored in the current user's standard Windows `Run` registry key.
+- Notification preferences are stored in `%LOCALAPPDATA%\CodexUsageMeter\settings.json`.
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
@@ -115,7 +118,7 @@ tests/
 ## Roadmap
 
 - Desktop widget anchored to any screen corner.
-- Configurable threshold and reset notifications.
+- Native Windows toast notifications and richer scheduling controls.
 - Installer and automatic updates.
 - ARM64 builds.
 - Additional usage providers if a supported API becomes available.
