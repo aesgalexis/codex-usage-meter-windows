@@ -18,7 +18,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Shows the available and used Codex percentages in the Windows notification area.
 - Optionally shows a normal or compact usage card when you hover over or left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
-- Offers a compact pinned mode where the entire capsule is the available-usage bar, with credit dots and an integrated pin.
+- Offers a compact pinned mode where the entire capsule is the available-usage bar with an integrated pin. Reset dots remain hidden until a reliable local reset-count source is available.
 - Displays how many days remain until the usage limit resets.
 - Shows the locally reported credit balance beneath the reset countdown without assuming that credits represent resets.
 - Uses the same green, amber, or red status color in the tray icon and widget bar, based on the rounded available percentage.

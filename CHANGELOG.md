@@ -13,6 +13,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Selects snapshots by their event timestamp across recent sessions instead of trusting file modification order.
 - Keeps the last valid snapshot during temporary failures and marks its age and stale state in the interface.
 - Labels the reported balance as credits instead of assuming that it represents available resets.
+- Compact mode no longer converts credits into reset dots; dots stay hidden until Codex exposes a reliable reset count.
 
 ### Added
 

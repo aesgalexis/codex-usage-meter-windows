@@ -110,16 +110,8 @@ public sealed class UsageFlyoutWindow : Window
         });
         _availablePercent = snapshot.AvailablePercent;
         _compactPercent.Text = $"{available}%";
-        var creditCount = snapshot.CreditBalance is { } credits ? Math.Max(0, (int)Math.Floor(credits)) : 0;
-        _compactDots.Text = creditCount switch
-        {
-            <= 0 => string.Empty,
-            <= 3 => string.Join(" ", Enumerable.Repeat("●", creditCount)),
-            _ => $"● ● ● +{creditCount - 3}"
-        };
-        _compactDots.ToolTip = snapshot.CreditBalance is { } creditBalance
-            ? AppText.Get("Credits", creditBalance.ToString("0.##", AppText.Culture))
-            : null;
+        _compactDots.Text = string.Empty;
+        _compactDots.ToolTip = null;
         _compactFill.Background = _progress.Foreground;
         UpdateCompactFill();
     }
