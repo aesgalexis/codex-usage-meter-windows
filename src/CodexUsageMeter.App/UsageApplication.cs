@@ -394,7 +394,7 @@ public sealed class UsageApplication : System.Windows.Application
         }
 
         _flyout.Show();
-        if (_flyout.IsCompact) _flyout.PlayShine();
+        if (_flyout.IsCompact) _flyout.PlayShine(force: true);
         if (_flyout.IsPinned && !hasSavedPosition) SaveWidgetPosition();
         if (activate) _flyout.Activate();
     }

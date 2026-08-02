@@ -27,9 +27,11 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Border _compactFill = new();
     private readonly Border _activityShine = new();
     private readonly TranslateTransform _shineTranslation = new();
+    private readonly RectangleGeometry _compactClip = new() { RadiusX = 20, RadiusY = 20 };
     private readonly Border _card;
     private readonly Border _compactCard;
     private double _availablePercent;
+    private DateTimeOffset _lastShineAt = DateTimeOffset.MinValue;
 
     public UsageFlyoutWindow()
     {
@@ -71,9 +73,12 @@ public sealed class UsageFlyoutWindow : Window
         if (compact) Dispatcher.BeginInvoke(UpdateCompactFill);
     }
 
-    public void PlayShine()
+    public void PlayShine(bool force = false)
     {
         if (!IsCompact) return;
+        var now = DateTimeOffset.Now;
+        if (!force && now - _lastShineAt < TimeSpan.FromSeconds(15)) return;
+        _lastShineAt = now;
 
         _activityShine.Visibility = Visibility.Visible;
         var animation = new DoubleAnimation
@@ -225,6 +230,7 @@ public sealed class UsageFlyoutWindow : Window
         Grid.SetColumn(_compactPin, 3); content.Children.Add(_compactPin);
 
         var layers = new Grid();
+        layers.Clip = _compactClip;
         layers.Children.Add(_compactFill);
         _activityShine.Width = 44;
         _activityShine.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
@@ -256,7 +262,11 @@ public sealed class UsageFlyoutWindow : Window
             ClipToBounds = true,
             Child = layers
         };
-        card.SizeChanged += (_, _) => UpdateCompactFill();
+        card.SizeChanged += (_, _) =>
+        {
+            _compactClip.Rect = new Rect(0, 0, card.ActualWidth, card.ActualHeight);
+            UpdateCompactFill();
+        };
         AttachDrag(card);
         return card;
     }
