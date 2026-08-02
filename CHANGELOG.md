@@ -6,6 +6,13 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-02
+
+### Added
+
+- Per-user Inno Setup installer with silent install and uninstall support for WinGet.
+- Automated installer verification during GitHub releases.
+
 ## [0.2.0] - 2026-08-02
 
 ### Added

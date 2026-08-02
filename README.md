@@ -26,9 +26,20 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 
 ### Portable release
 
-Download the latest Windows ZIP from [Releases](https://github.com/aesgalexis/codex-usage-meter-windows/releases), extract it, and run `CodexUsageMeter.exe`.
+Download `CodexUsageMeter-Setup-win-x64.exe` from [Releases](https://github.com/aesgalexis/codex-usage-meter-windows/releases) and run it. The installer works per user, does not require administrator privileges, and keeps a stable location for future upgrades.
 
-Published builds are self-contained: the destination PC does not need the .NET runtime installed. Until the first release is available, use the development instructions below.
+The portable `CodexUsageMeter-win-x64.zip` remains available for users who prefer not to install the app.
+
+Published builds are self-contained: the destination PC does not need the .NET runtime installed.
+
+### WinGet
+
+The package is being prepared for the Windows Package Manager community catalog. Once Microsoft accepts the submission, installation and upgrades will use:
+
+```powershell
+winget install --id aesgalexis.CodexUsageMeter --exact
+winget upgrade --id aesgalexis.CodexUsageMeter --exact
+```
 
 ### Using the app
 

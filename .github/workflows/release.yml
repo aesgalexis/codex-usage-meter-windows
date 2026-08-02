@@ -26,15 +26,45 @@ jobs:
           dotnet publish src/CodexUsageMeter.App/CodexUsageMeter.App.csproj
           -p:PublishProfile=win-x64
           --output artifacts/win-x64
+      - name: Build Inno Setup installer
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          $sourceDir = (Resolve-Path "artifacts/win-x64").Path
+          $outputDir = (Resolve-Path "artifacts").Path
+          $isccCommand = Get-Command iscc.exe -ErrorAction SilentlyContinue
+          $iscc = if ($isccCommand) { $isccCommand.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          if (-not (Test-Path -LiteralPath $iscc -PathType Leaf)) { throw "Inno Setup compiler not found" }
+          & $iscc "/DMyAppVersion=$version" "/DSourceDir=$sourceDir" "/DOutputDir=$outputDir" "installer/CodexUsageMeter.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test silent install and uninstall
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "artifacts/CodexUsageMeter-Setup-win-x64.exe").Path
+          $testDir = Join-Path $env:RUNNER_TEMP "CodexUsageMeterInstallTest"
+          $install = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$testDir`"" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)" }
+          $installedApp = Join-Path $testDir "CodexUsageMeter.exe"
+          if (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) { throw "Installed executable not found" }
+          $uninstaller = Join-Path $testDir "unins000.exe"
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)" }
       - name: Create ZIP
         shell: pwsh
         run: Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/CodexUsageMeter-win-x64.zip
       - uses: actions/upload-artifact@v7
         with:
           name: CodexUsageMeter-win-x64
-          path: artifacts/CodexUsageMeter-win-x64.zip
+          path: |
+            artifacts/CodexUsageMeter-win-x64.zip
+            artifacts/CodexUsageMeter-Setup-win-x64.exe
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" artifacts/CodexUsageMeter-win-x64.zip --generate-notes --verify-tag
+        run: >-
+          gh release create "${{ github.ref_name }}"
+          artifacts/CodexUsageMeter-win-x64.zip
+          artifacts/CodexUsageMeter-Setup-win-x64.exe
+          --generate-notes
+          --verify-tag
