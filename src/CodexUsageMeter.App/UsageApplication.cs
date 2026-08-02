@@ -22,6 +22,7 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
     private readonly DispatcherTimer _flyoutCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
+    private readonly DispatcherTimer _activityTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
@@ -30,6 +31,7 @@ public sealed class UsageApplication : System.Windows.Application
     private Forms.ToolStripMenuItem _disabledWidgetItem = null!;
     private Forms.ToolStripMenuItem _normalWidgetItem = null!;
     private Forms.ToolStripMenuItem _compactWidgetItem = null!;
+    private Forms.ToolStripMenuItem _animateActivityItem = null!;
     private UsageFlyoutWindow? _flyout;
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
@@ -37,6 +39,7 @@ public sealed class UsageApplication : System.Windows.Application
     private FileSystemWatcher? _sessionWatcher;
     private bool _isRefreshing;
     private bool _latestIsStale;
+    private bool _activityDetected;
     private UsageFailureKind _latestFailureKind;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -62,6 +65,12 @@ public sealed class UsageApplication : System.Windows.Application
         {
             _flyoutCloseTimer.Stop();
             if (_flyout is { IsPinned: false, IsMouseOver: false }) _flyout.Hide();
+        };
+        _activityTimer.Tick += (_, _) =>
+        {
+            _activityTimer.Stop();
+            _activityDetected = false;
+            _flyout?.SetActivity(false);
         };
         _refreshTimer.Tick += async (_, _) => await RefreshAsync();
         _fileChangeTimer.Tick += async (_, _) =>
@@ -121,13 +130,20 @@ public sealed class UsageApplication : System.Windows.Application
         _disabledWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Disabled")) { CheckOnClick = true };
         _normalWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Normal")) { CheckOnClick = true };
         _compactWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Compact")) { CheckOnClick = true };
+        _animateActivityItem = new Forms.ToolStripMenuItem(AppText.Get("AnimateActivity")) { CheckOnClick = true, Checked = _settings.AnimateCodexActivity };
         _disabledWidgetItem.Checked = !_settings.WidgetEnabled;
         _normalWidgetItem.Checked = _settings.WidgetEnabled && !_settings.WidgetCompact;
         _compactWidgetItem.Checked = _settings.WidgetEnabled && _settings.WidgetCompact;
         _normalWidgetItem.Click += (_, _) => SetWidgetMode(true, false);
         _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, true);
         _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, false);
-        menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem]);
+        _animateActivityItem.CheckedChanged += (_, _) =>
+        {
+            _settings.AnimateCodexActivity = _animateActivityItem.Checked;
+            _settingsStore.Save(_settings);
+            _flyout?.SetActivity(_settings.AnimateCodexActivity && _activityDetected);
+        };
+        menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem, new Forms.ToolStripSeparator(), _animateActivityItem]);
         return menu;
     }
 
@@ -331,6 +347,13 @@ public sealed class UsageApplication : System.Windows.Application
     {
         Dispatcher.BeginInvoke(() =>
         {
+            if (_settings.AnimateCodexActivity)
+            {
+                _activityDetected = true;
+                _activityTimer.Stop();
+                _activityTimer.Start();
+                _flyout?.SetActivity(true);
+            }
             _fileChangeTimer.Stop();
             _fileChangeTimer.Start();
         });
@@ -382,6 +405,7 @@ public sealed class UsageApplication : System.Windows.Application
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetCompact(_settings.WidgetCompact);
+        _flyout.SetActivity(_settings.AnimateCodexActivity && _activityDetected);
         _flyout.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
@@ -555,6 +579,7 @@ public sealed class UsageApplication : System.Windows.Application
         _refreshTimer.Stop();
         _fileChangeTimer.Stop();
         _flyoutCloseTimer.Stop();
+        _activityTimer.Stop();
         _sessionWatcher?.Dispose();
         _flyout?.Close();
         _notifyIcon.Visible = false;

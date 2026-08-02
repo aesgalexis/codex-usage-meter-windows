@@ -30,7 +30,7 @@ public static class AppText
         ["OneReset"] = "1 reset available", ["ManyResets"] = "{0} resets available",
         ["Credits"] = "Credits: {0}", ["NoCredits"] = "Credits: no data", ["Stale"] = "Stale",
         ["JustNow"] = "just now", ["MinutesAgo"] = "{0} min ago", ["HoursAgo"] = "{0} h ago", ["DaysAgo"] = "{0} d ago",
-        ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex is not installed or has no sessions",
+        ["WindowUsed"] = "{0} {1}%", ["AnimateActivity"] = "Animate Codex activity", ["SessionsMissing"] = "Codex is not installed or has no sessions",
         ["NoSnapshots"] = "Waiting for a Codex usage snapshot", ["ReadError"] = "Temporary session read error", ["AccessDenied"] = "Codex sessions cannot be accessed"
     };
 
@@ -58,7 +58,7 @@ public static class AppText
         ["OneReset"] = "1 reset disponible", ["ManyResets"] = "{0} resets disponibles",
         ["Credits"] = "Créditos: {0}", ["NoCredits"] = "Créditos: sin datos", ["Stale"] = "Desactualizado",
         ["JustNow"] = "ahora", ["MinutesAgo"] = "hace {0} min", ["HoursAgo"] = "hace {0} h", ["DaysAgo"] = "hace {0} d",
-        ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex no está instalado o no tiene sesiones",
+        ["WindowUsed"] = "{0} {1}%", ["AnimateActivity"] = "Animar actividad de Codex", ["SessionsMissing"] = "Codex no está instalado o no tiene sesiones",
         ["NoSnapshots"] = "Esperando datos de uso de Codex", ["ReadError"] = "Error temporal al leer las sesiones", ["AccessDenied"] = "No se puede acceder a las sesiones de Codex"
     };
 

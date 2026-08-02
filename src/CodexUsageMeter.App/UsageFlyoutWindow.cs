@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using CodexUsageMeter.Core;
 using Button = System.Windows.Controls.Button;
 using Brushes = System.Windows.Media.Brushes;
@@ -24,9 +25,12 @@ public sealed class UsageFlyoutWindow : Window
     private readonly TextBlock _compactPercent = new();
     private readonly TextBlock _compactDots = new();
     private readonly Border _compactFill = new();
+    private readonly Border _activityShine = new();
+    private readonly TranslateTransform _shineTranslation = new();
     private readonly Border _card;
     private readonly Border _compactCard;
     private double _availablePercent;
+    private bool _activityActive;
 
     public UsageFlyoutWindow()
     {
@@ -65,7 +69,14 @@ public sealed class UsageFlyoutWindow : Window
         Width = compact ? 260 : 310;
         Height = compact ? 40 : 154;
         Content = compact ? _compactCard : _card;
-        if (compact) Dispatcher.BeginInvoke(UpdateCompactFill);
+        if (compact) Dispatcher.BeginInvoke(() => { UpdateCompactFill(); UpdateActivityAnimation(); });
+        else UpdateActivityAnimation();
+    }
+
+    public void SetActivity(bool active)
+    {
+        _activityActive = active;
+        UpdateActivityAnimation();
     }
 
     public void UpdateUsage(UsageSnapshot? snapshot, string? error = null, bool stale = false)
@@ -207,6 +218,26 @@ public sealed class UsageFlyoutWindow : Window
 
         var layers = new Grid();
         layers.Children.Add(_compactFill);
+        _activityShine.Width = 44;
+        _activityShine.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        _activityShine.IsHitTestVisible = false;
+        _activityShine.Visibility = Visibility.Collapsed;
+        _activityShine.Background = new LinearGradientBrush
+        {
+            GradientStops = new GradientStopCollection
+            {
+                new(Colors.Transparent, 0),
+                new(Color.FromArgb(105, 255, 255, 255), 0.5),
+                new(Colors.Transparent, 1)
+            },
+            StartPoint = new System.Windows.Point(0, 0),
+            EndPoint = new System.Windows.Point(1, 0)
+        };
+        _activityShine.RenderTransform = new TransformGroup
+        {
+            Children = new TransformCollection { new SkewTransform(-18, 0), _shineTranslation }
+        };
+        layers.Children.Add(_activityShine);
         layers.Children.Add(content);
         var card = new Border
         {
@@ -220,6 +251,27 @@ public sealed class UsageFlyoutWindow : Window
         card.SizeChanged += (_, _) => UpdateCompactFill();
         AttachDrag(card);
         return card;
+    }
+
+    private void UpdateActivityAnimation()
+    {
+        var shouldAnimate = IsCompact && _activityActive;
+        if (!shouldAnimate)
+        {
+            _shineTranslation.BeginAnimation(TranslateTransform.XProperty, null);
+            _activityShine.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _activityShine.Visibility = Visibility.Visible;
+        var animation = new DoubleAnimation
+        {
+            From = -60,
+            To = Width + 60,
+            Duration = TimeSpan.FromSeconds(1.35),
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        _shineTranslation.BeginAnimation(TranslateTransform.XProperty, animation);
     }
 
     private void UpdateCompactFill()
