@@ -19,7 +19,6 @@ public sealed class UsageFlyoutWindow : Window
     private readonly TextBlock _reset = new();
     private readonly ProgressBar _progress = new();
     private readonly Button _pin = new();
-    private readonly Button _close = new();
     private readonly Border _card;
 
     public UsageFlyoutWindow()
@@ -47,10 +46,10 @@ public sealed class UsageFlyoutWindow : Window
         IsPinned = pinned;
         _pin.Content = "\uE718";
         _pin.ToolTip = pinned ? "Soltar widget" : "Fijar widget";
-        _pin.Background = new SolidColorBrush(pinned
-            ? Color.FromRgb(38, 135, 89)
-            : Color.FromRgb(55, 59, 68));
-        _close.Visibility = pinned ? Visibility.Visible : Visibility.Collapsed;
+        _pin.Foreground = new SolidColorBrush(pinned
+            ? Color.FromRgb(56, 205, 132)
+            : Color.FromRgb(190, 194, 202));
+        _pin.LayoutTransform = new RotateTransform(pinned ? 0 : 90);
     }
 
     public void UpdateUsage(UsageSnapshot? snapshot, string? error = null)
@@ -83,28 +82,20 @@ public sealed class UsageFlyoutWindow : Window
         var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
         _pin.Content = "\uE718";
         _pin.FontFamily = new FontFamily("Segoe MDL2 Assets");
         _pin.ToolTip = "Fijar widget";
-        _pin.Width = 30;
-        _pin.Height = 26;
+        _pin.Width = 34;
+        _pin.Height = 30;
         _pin.Padding = new Thickness(0);
+        _pin.Background = Brushes.Transparent;
+        _pin.BorderBrush = Brushes.Transparent;
         StyleButton(_pin);
+        _pin.FontSize = 18;
         _pin.Click += (_, _) => { SetPinned(!IsPinned); PinChanged?.Invoke(this, IsPinned); };
-        _close.Content = "×";
-        StyleButton(_close);
-        _close.Margin = new Thickness(6, 0, 0, 0);
-        _close.Click += (_, _) =>
-        {
-            SetPinned(false);
-            PinChanged?.Invoke(this, false);
-            Hide();
-        };
         header.Children.Add(title);
         Grid.SetColumn(_pin, 1); header.Children.Add(_pin);
-        Grid.SetColumn(_close, 2); header.Children.Add(_close);
         root.Children.Add(header);
 
         _available.FontSize = 18; _available.FontWeight = FontWeights.SemiBold; _available.Foreground = Brushes.White; _available.Margin = new Thickness(0, 9, 0, 6);
@@ -142,7 +133,8 @@ public sealed class UsageFlyoutWindow : Window
     {
         button.Padding = new Thickness(9, 3, 9, 3);
         button.Foreground = Brushes.White;
-        button.Background = new SolidColorBrush(Color.FromRgb(55, 59, 68));
+        button.Background = Brushes.Transparent;
+        button.BorderBrush = Brushes.Transparent;
         button.BorderThickness = new Thickness(0);
         button.FontSize = 11;
         button.Cursor = Cursors.Hand;

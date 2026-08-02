@@ -12,6 +12,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Pinable, always-visible desktop widget with drag-and-drop positioning.
 - Persistent widget visibility and screen position across restarts.
 - Compact percentage typography and an icon-only pin control with a visible active state.
+- Larger borderless pin that rotates to indicate whether the widget is fixed or released.
 
 ## [0.2.2] - 2026-08-02
 
