@@ -18,9 +18,9 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Shows the available and used Codex percentages in the Windows notification area.
 - Optionally shows a normal or compact usage card when you hover over or left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
-- Offers a compact pinned mode where the entire capsule is the available-usage bar, with reset dots and an integrated pin.
+- Offers a compact pinned mode where the entire capsule is the available-usage bar, with credit dots and an integrated pin.
 - Displays how many days remain until the usage limit resets.
-- Shows the locally reported number of available resets beneath the reset countdown.
+- Shows the locally reported credit balance beneath the reset countdown without assuming that credits represent resets.
 - Uses the same green, amber, or red status color in the tray icon and widget bar, based on the rounded available percentage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
 - Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.
@@ -85,6 +85,8 @@ UsageSnapshot
         ↓
 Windows tray indicator
 ```
+
+The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows, identifies them by duration, and uses the most restrictive available window for the tray indicator while the normal widget lists every reported window. Temporary read failures retain the last valid value and mark it as stale.
 
 The reader is isolated behind an `IUsageProvider` interface so it can be replaced if OpenAI publishes a suitable supported API.
 

@@ -16,6 +16,7 @@ public sealed class UsageApplication : System.Windows.Application
     private const string StartupKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string StartupValueName = "CodexUsageMeter";
     private const string AppRegistryPath = @"Software\CodexUsageMeter";
+    private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(30);
     private readonly IUsageProvider _provider = new CodexSessionUsageProvider();
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
@@ -35,6 +36,8 @@ public sealed class UsageApplication : System.Windows.Application
     private AppSettings _settings = new();
     private FileSystemWatcher? _sessionWatcher;
     private bool _isRefreshing;
+    private bool _latestIsStale;
+    private UsageFailureKind _latestFailureKind;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -148,7 +151,7 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.ContextMenuStrip = BuildMenu();
         previous?.Dispose();
         _flyout?.SetPinned(_flyout.IsPinned);
-        _flyout?.UpdateUsage(_latest);
+        _flyout?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         _ = RefreshAsync();
     }
 
@@ -209,31 +212,30 @@ public sealed class UsageApplication : System.Windows.Application
         try
         {
             var result = await _provider.GetLatestAsync();
-            if (result.Snapshot is { } snapshot)
+            var previous = _latest;
+            var state = UsageStatePolicy.Resolve(_latest, result, DateTimeOffset.Now, StaleAfter);
+            _latest = state.Snapshot;
+            _latestIsStale = state.IsStale;
+            _latestFailureKind = state.FailureKind;
+
+            if (_latest is { } snapshot)
             {
-                var notification = UsageNotificationEvaluator.Evaluate(
-                    _latest,
-                    snapshot,
-                    _settings.ToNotificationOptions());
-                _latest = snapshot;
-                var available = (int)Math.Round(snapshot.AvailablePercent);
-                _statusItem.Text = AppText.Get("Available", available, snapshot.UsedPercent.ToString("0.#", AppText.Culture));
-                _resetItem.Text = snapshot.ResetsAt is { } reset
-                    ? AppText.Get("ResetAt", reset.ToLocalTime().ToString("g", AppText.Culture))
-                    : AppText.Get("NoReset");
-                _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}");
-                _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
-                _flyout?.UpdateUsage(snapshot);
-                ShowUsageNotification(notification, snapshot);
+                var reason = state.FailureKind == UsageFailureKind.None ? null : LocalizeFailure(state.FailureKind);
+                UpdateUsageDisplay(snapshot, state.IsStale, reason);
+                if (result.Snapshot == snapshot)
+                {
+                    var notification = UsageNotificationEvaluator.Evaluate(previous, snapshot, _settings.ToNotificationOptions());
+                    ShowUsageNotification(notification, snapshot);
+                }
             }
             else
             {
-                _latest = null;
-                _statusItem.Text = AppText.Get("NoUsage");
+                var failure = LocalizeFailure(state.FailureKind);
+                _statusItem.Text = failure;
                 _resetItem.Text = AppText.Get("RunTask");
                 _notifyIcon.Text = TruncateTooltip($"Codex Usage Meter: {AppText.Get("NoData")}");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
-                _flyout?.UpdateUsage(null, result.Error);
+                _flyout?.UpdateUsage(null, failure);
             }
         }
         finally
@@ -242,6 +244,28 @@ public sealed class UsageApplication : System.Windows.Application
             _isRefreshing = false;
         }
     }
+
+    private void UpdateUsageDisplay(UsageSnapshot snapshot, bool stale, string? staleReason = null)
+    {
+        var available = (int)Math.Round(snapshot.AvailablePercent);
+        _statusItem.Text = AppText.Get("Available", available, snapshot.UsedPercent.ToString("0.#", AppText.Culture));
+        if (stale) _statusItem.Text += $" · {staleReason ?? AppText.Get("Stale")}";
+        _resetItem.Text = snapshot.ResetsAt is { } reset
+            ? AppText.Get("ResetAt", reset.ToLocalTime().ToString("g", AppText.Culture))
+            : AppText.Get("NoReset");
+        _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}{(stale ? $" · {AppText.Get("Stale")}" : string.Empty)}");
+        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
+        _flyout?.UpdateUsage(snapshot, staleReason, stale);
+    }
+
+    private static string LocalizeFailure(UsageFailureKind kind) => kind switch
+    {
+        UsageFailureKind.SessionsMissing => AppText.Get("SessionsMissing"),
+        UsageFailureKind.NoSnapshots => AppText.Get("NoSnapshots"),
+        UsageFailureKind.AccessDenied => AppText.Get("AccessDenied"),
+        UsageFailureKind.ReadError => AppText.Get("ReadError"),
+        _ => AppText.Get("Stale")
+    };
 
     private void ShowUsageNotification(UsageNotification? notification, UsageSnapshot snapshot)
     {
@@ -358,7 +382,7 @@ public sealed class UsageApplication : System.Windows.Application
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetCompact(_settings.WidgetCompact);
-        _flyout.UpdateUsage(_latest);
+        _flyout.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
         if (_flyout.IsPinned && _settings.WidgetLeft is { } left && _settings.WidgetTop is { } top)

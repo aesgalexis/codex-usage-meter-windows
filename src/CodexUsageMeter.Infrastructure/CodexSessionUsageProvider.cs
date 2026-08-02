@@ -19,7 +19,7 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
     {
         if (!Directory.Exists(_sessionsDirectory))
         {
-            return UsageResult.Failure("No se encontró la carpeta de sesiones de Codex.");
+            return UsageResult.Failure("Codex sessions directory was not found.", UsageFailureKind.SessionsMissing);
         }
 
         FileInfo[] files;
@@ -33,23 +33,26 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
         }
         catch (IOException ex)
         {
-            return UsageResult.Failure($"No se pudieron enumerar las sesiones: {ex.Message}");
+            return UsageResult.Failure($"Could not enumerate Codex sessions: {ex.Message}", UsageFailureKind.ReadError);
         }
         catch (UnauthorizedAccessException ex)
         {
-            return UsageResult.Failure($"No se pudo acceder a las sesiones: {ex.Message}");
+            return UsageResult.Failure($"Could not access Codex sessions: {ex.Message}", UsageFailureKind.AccessDenied);
         }
 
+        UsageSnapshot? latest = null;
         foreach (var file in files)
         {
             var snapshot = await ReadLatestFromFileAsync(file.FullName, cancellationToken);
-            if (snapshot is not null)
+            if (snapshot is not null && (latest is null || snapshot.ObservedAt > latest.ObservedAt))
             {
-                return UsageResult.Success(snapshot);
+                latest = snapshot;
             }
         }
 
-        return UsageResult.Failure("Todavía no hay información de uso en las sesiones de Codex.");
+        if (latest is not null) return UsageResult.Success(latest);
+
+        return UsageResult.Failure("No usage snapshots were found in Codex sessions.", UsageFailureKind.NoSnapshots);
     }
 
     private static async Task<UsageSnapshot?> ReadLatestFromFileAsync(
@@ -73,6 +76,7 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
             var text = Encoding.UTF8.GetString(buffer, 0, read);
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
+            UsageSnapshot? latest = null;
             for (var index = lines.Length - 1; index >= 0; index--)
             {
                 if (!lines[index].Contains("\"rate_limits\"", StringComparison.Ordinal))
@@ -81,11 +85,12 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
                 }
 
                 var snapshot = CodexRateLimitParser.Parse(lines[index].TrimEnd('\r'));
-                if (snapshot is not null)
+                if (snapshot is not null && (latest is null || snapshot.ObservedAt > latest.ObservedAt))
                 {
-                    return snapshot;
+                    latest = snapshot;
                 }
             }
+            return latest;
         }
         catch (IOException)
         {

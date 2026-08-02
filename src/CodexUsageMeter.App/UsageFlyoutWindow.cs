@@ -68,14 +68,14 @@ public sealed class UsageFlyoutWindow : Window
         if (compact) Dispatcher.BeginInvoke(UpdateCompactFill);
     }
 
-    public void UpdateUsage(UsageSnapshot? snapshot, string? error = null)
+    public void UpdateUsage(UsageSnapshot? snapshot, string? error = null, bool stale = false)
     {
         if (snapshot is null)
         {
             _available.Text = AppText.Get("NoData");
             _details.Text = error ?? AppText.Get("WaitingTask");
             _reset.Text = AppText.Get("AutoUpdate");
-            _credits.Text = AppText.Get("ResetsUnknown");
+            _credits.Text = AppText.Get("NoCredits");
             _progress.Value = 0;
             _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             _availablePercent = 0;
@@ -89,13 +89,18 @@ public sealed class UsageFlyoutWindow : Window
 
         var available = (int)Math.Round(snapshot.AvailablePercent);
         _available.Text = AppText.Get("AvailableText", available);
-        _details.Text = AppText.Get("UsedText", snapshot.UsedPercent.ToString("0.#", AppText.Culture));
+        _details.Text = snapshot.Windows.Count > 1
+            ? string.Join(" · ", snapshot.Windows.Select(window => AppText.Get("WindowUsed", FormatWindow(window.WindowMinutes), window.UsedPercent.ToString("0.#", AppText.Culture))))
+            : AppText.Get("UsedText", snapshot.UsedPercent.ToString("0.#", AppText.Culture));
         _reset.Text = snapshot.ResetsAt is { } reset
             ? FormatTimeUntilReset(reset)
             : AppText.Get("Updated", snapshot.ObservedAt.ToLocalTime().ToString("t", AppText.Culture));
-        _credits.Text = snapshot.CreditBalance is { } balance
-            ? AppText.Get("Resets", balance.ToString("0.##", AppText.Culture))
-            : AppText.Get("ResetsUnknown");
+        var age = FormatAge(snapshot.ObservedAt);
+        var creditsText = snapshot.CreditBalance is { } balance
+            ? AppText.Get("Credits", balance.ToString("0.##", AppText.Culture))
+            : AppText.Get("NoCredits");
+        _credits.Text = stale ? $"{AppText.Get("Stale")}: {age} · {creditsText}" : $"{age} · {creditsText}";
+        _credits.ToolTip = stale ? error : null;
         _progress.Value = snapshot.AvailablePercent;
         _progress.Foreground = new SolidColorBrush(available switch
         {
@@ -105,16 +110,35 @@ public sealed class UsageFlyoutWindow : Window
         });
         _availablePercent = snapshot.AvailablePercent;
         _compactPercent.Text = $"{available}%";
-        var resets = snapshot.CreditBalance is { } credits ? Math.Max(0, (int)Math.Floor(credits)) : 0;
-        _compactDots.Text = resets switch
+        var creditCount = snapshot.CreditBalance is { } credits ? Math.Max(0, (int)Math.Floor(credits)) : 0;
+        _compactDots.Text = creditCount switch
         {
             <= 0 => string.Empty,
-            <= 3 => string.Join(" ", Enumerable.Repeat("●", resets)),
-            _ => $"● ● ● +{resets - 3}"
+            <= 3 => string.Join(" ", Enumerable.Repeat("●", creditCount)),
+            _ => $"● ● ● +{creditCount - 3}"
         };
-        _compactDots.ToolTip = AppText.Get(resets == 1 ? "OneReset" : "ManyResets", resets);
+        _compactDots.ToolTip = snapshot.CreditBalance is { } creditBalance
+            ? AppText.Get("Credits", creditBalance.ToString("0.##", AppText.Culture))
+            : null;
         _compactFill.Background = _progress.Foreground;
         UpdateCompactFill();
+    }
+
+    private static string FormatWindow(int? minutes) => minutes switch
+    {
+        null => "?",
+        < 60 => $"{minutes}m",
+        < 1440 => $"{minutes / 60d:0.#}h",
+        _ => $"{minutes / 1440d:0.#}d"
+    };
+
+    private static string FormatAge(DateTimeOffset observedAt)
+    {
+        var age = DateTimeOffset.Now - observedAt;
+        if (age < TimeSpan.FromMinutes(1)) return AppText.Get("JustNow");
+        if (age < TimeSpan.FromHours(1)) return AppText.Get("MinutesAgo", Math.Max(1, (int)age.TotalMinutes));
+        if (age < TimeSpan.FromDays(1)) return AppText.Get("HoursAgo", Math.Max(1, (int)age.TotalHours));
+        return AppText.Get("DaysAgo", Math.Max(1, (int)age.TotalDays));
     }
 
     private static string FormatTimeUntilReset(DateTimeOffset reset)

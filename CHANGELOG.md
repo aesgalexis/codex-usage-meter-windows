@@ -9,11 +9,19 @@ The project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - The tray-visibility command now opens Windows taskbar settings directly without an intermediate message.
+- Reads primary and secondary rate-limit windows, identifies them by duration and uses the most restrictive window for the main indicator.
+- Selects snapshots by their event timestamp across recent sessions instead of trusting file modification order.
+- Keeps the last valid snapshot during temporary failures and marks its age and stale state in the interface.
+- Labels the reported balance as credits instead of assuming that it represents available resets.
 
 ### Added
 
 - English and Spanish application catalogs covering the tray menu, widgets, tooltips and notifications.
 - Installer language selection, Windows-language detection, persistent preference and an in-app language menu.
+
+### Tests
+
+- Added coverage for dual windows, secondary-only events, replayed old snapshots, cross-session ordering and incomplete JSONL tail fragments.
 
 ## [0.3.0] - 2026-08-02
 

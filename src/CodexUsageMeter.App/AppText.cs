@@ -27,7 +27,11 @@ public static class AppText
         ["UsedText"] = "{0}% used", ["Updated"] = "Updated {0}", ["Resets"] = "Available resets: {0}",
         ["ResetPending"] = "Usage reset pending", ["ResetUnderDay"] = "Usage resets in less than 1 day",
         ["ResetOneDay"] = "Usage resets in 1 day", ["ResetDays"] = "Usage resets in {0} days",
-        ["OneReset"] = "1 reset available", ["ManyResets"] = "{0} resets available"
+        ["OneReset"] = "1 reset available", ["ManyResets"] = "{0} resets available",
+        ["Credits"] = "Credits: {0}", ["NoCredits"] = "Credits: no data", ["Stale"] = "Stale",
+        ["JustNow"] = "just now", ["MinutesAgo"] = "{0} min ago", ["HoursAgo"] = "{0} h ago", ["DaysAgo"] = "{0} d ago",
+        ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex is not installed or has no sessions",
+        ["NoSnapshots"] = "Waiting for a Codex usage snapshot", ["ReadError"] = "Temporary session read error", ["AccessDenied"] = "Codex sessions cannot be accessed"
     };
 
     private static readonly IReadOnlyDictionary<string, string> Es = new Dictionary<string, string>
@@ -51,7 +55,11 @@ public static class AppText
         ["UsedText"] = "{0}% usado", ["Updated"] = "Actualizado {0}", ["Resets"] = "Resets disponibles: {0}",
         ["ResetPending"] = "Reinicio del uso pendiente", ["ResetUnderDay"] = "Reinicio del uso en menos de 1 día",
         ["ResetOneDay"] = "Reinicio del uso en 1 día", ["ResetDays"] = "Reinicio del uso en {0} días",
-        ["OneReset"] = "1 reset disponible", ["ManyResets"] = "{0} resets disponibles"
+        ["OneReset"] = "1 reset disponible", ["ManyResets"] = "{0} resets disponibles",
+        ["Credits"] = "Créditos: {0}", ["NoCredits"] = "Créditos: sin datos", ["Stale"] = "Desactualizado",
+        ["JustNow"] = "ahora", ["MinutesAgo"] = "hace {0} min", ["HoursAgo"] = "hace {0} h", ["DaysAgo"] = "hace {0} d",
+        ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex no está instalado o no tiene sesiones",
+        ["NoSnapshots"] = "Esperando datos de uso de Codex", ["ReadError"] = "Error temporal al leer las sesiones", ["AccessDenied"] = "No se puede acceder a las sesiones de Codex"
     };
 
     public static CultureInfo Culture { get; private set; } = CultureInfo.GetCultureInfo(English);
