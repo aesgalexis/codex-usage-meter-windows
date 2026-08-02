@@ -4,6 +4,7 @@ namespace CodexUsageMeter.App;
 
 public sealed class AppSettings
 {
+    public string? Language { get; set; }
     public bool NotifyOnPercentChange { get; set; }
     public bool NotifyAt50Percent { get; set; } = true;
     public bool NotifyAt75Percent { get; set; } = true;

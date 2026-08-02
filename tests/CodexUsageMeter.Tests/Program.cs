@@ -16,6 +16,11 @@ Assert(snapshot.PlanType == "plus", "El plan debe leerse.");
 Assert(snapshot.CreditBalance == 12.50m, "El saldo debe leerse con formato invariante.");
 Assert(CodexRateLimitParser.Parse("{not-json") is null, "JSON inválido no debe lanzar una excepción.");
 Assert(CodexRateLimitParser.Parse("{\"payload\":{}}") is null, "Un evento ajeno debe ignorarse.");
+Assert(AppText.CatalogsMatch(), "Los catálogos inglés y español deben contener las mismas claves.");
+AppText.SetLanguage(AppText.English);
+Assert(AppText.Get("AvailableText", 50) == "50% available", "El catálogo inglés debe formatear el widget.");
+AppText.SetLanguage(AppText.Spanish);
+Assert(AppText.Get("AvailableText", 50) == "50% disponible", "El catálogo español debe formatear el widget.");
 
 var missingProvider = new CodexSessionUsageProvider(Path.Combine(Path.GetTempPath(), $"codex-usage-meter-missing-{Guid.NewGuid():N}"));
 var missingResult = await missingProvider.GetLatestAsync();

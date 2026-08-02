@@ -10,6 +10,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 - The tray-visibility command now opens Windows taskbar settings directly without an intermediate message.
 
+### Added
+
+- English and Spanish application catalogs covering the tray menu, widgets, tooltips and notifications.
+- Installer language selection, Windows-language detection, persistent preference and an in-app language menu.
+
 ## [0.3.0] - 2026-08-02
 
 ### Added

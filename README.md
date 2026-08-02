@@ -28,6 +28,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Uses a stable native notification-area identity so Windows can retain that visibility choice across upgrades.
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
+- Supports English and Spanish, selected during installation or changed later from the tray menu.
 
 ### Widget modes
 
@@ -55,6 +56,8 @@ The package is being prepared for the Windows Package Manager community catalog.
 winget install --id aesgalexis.CodexUsageMeter --exact
 winget upgrade --id aesgalexis.CodexUsageMeter --exact
 ```
+
+Interactive installer builds offer English and Spanish. Portable and silent WinGet installations use the Windows display language on first run. The language can always be changed later from the tray menu and is preserved across upgrades.
 
 ### Using the app
 

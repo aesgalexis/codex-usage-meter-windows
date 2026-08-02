@@ -53,9 +53,9 @@ public sealed class UsageFlyoutWindow : Window
     public void SetPinned(bool pinned)
     {
         IsPinned = pinned;
-        _pin.ToolTip = pinned ? "Soltar widget" : "Fijar widget";
+        _pin.ToolTip = AppText.Get(pinned ? "Unpin" : "Pin");
         _pin.LayoutTransform = new RotateTransform(pinned ? 45 : 0);
-        _compactPin.ToolTip = pinned ? "Soltar widget" : "Fijar widget";
+        _compactPin.ToolTip = AppText.Get(pinned ? "Unpin" : "Pin");
         _compactPin.LayoutTransform = new RotateTransform(pinned ? 45 : 0);
     }
 
@@ -72,14 +72,14 @@ public sealed class UsageFlyoutWindow : Window
     {
         if (snapshot is null)
         {
-            _available.Text = "Sin datos";
-            _details.Text = error ?? "Ejecuta una tarea en Codex";
-            _reset.Text = "Actualizaremos la tarjeta automáticamente";
-            _credits.Text = "Resets disponibles: sin datos";
+            _available.Text = AppText.Get("NoData");
+            _details.Text = error ?? AppText.Get("WaitingTask");
+            _reset.Text = AppText.Get("AutoUpdate");
+            _credits.Text = AppText.Get("ResetsUnknown");
             _progress.Value = 0;
             _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             _availablePercent = 0;
-            _compactPercent.Text = "Sin datos";
+            _compactPercent.Text = AppText.Get("NoData");
             _compactDots.Text = string.Empty;
             _compactDots.ToolTip = null;
             _compactFill.Background = new SolidColorBrush(Color.FromRgb(120, 130, 140));
@@ -88,14 +88,14 @@ public sealed class UsageFlyoutWindow : Window
         }
 
         var available = (int)Math.Round(snapshot.AvailablePercent);
-        _available.Text = $"{available}% disponible";
-        _details.Text = $"{snapshot.UsedPercent:0.#}% usado";
+        _available.Text = AppText.Get("AvailableText", available);
+        _details.Text = AppText.Get("UsedText", snapshot.UsedPercent.ToString("0.#", AppText.Culture));
         _reset.Text = snapshot.ResetsAt is { } reset
             ? FormatTimeUntilReset(reset)
-            : $"Actualizado {snapshot.ObservedAt.ToLocalTime():t}";
+            : AppText.Get("Updated", snapshot.ObservedAt.ToLocalTime().ToString("t", AppText.Culture));
         _credits.Text = snapshot.CreditBalance is { } balance
-            ? $"Resets disponibles: {balance:0.##}"
-            : "Resets disponibles: sin datos";
+            ? AppText.Get("Resets", balance.ToString("0.##", AppText.Culture))
+            : AppText.Get("ResetsUnknown");
         _progress.Value = snapshot.AvailablePercent;
         _progress.Foreground = new SolidColorBrush(available switch
         {
@@ -112,7 +112,7 @@ public sealed class UsageFlyoutWindow : Window
             <= 3 => string.Join(" ", Enumerable.Repeat("●", resets)),
             _ => $"● ● ● +{resets - 3}"
         };
-        _compactDots.ToolTip = resets == 1 ? "1 reset disponible" : $"{resets} resets disponibles";
+        _compactDots.ToolTip = AppText.Get(resets == 1 ? "OneReset" : "ManyResets", resets);
         _compactFill.Background = _progress.Foreground;
         UpdateCompactFill();
     }
@@ -120,11 +120,11 @@ public sealed class UsageFlyoutWindow : Window
     private static string FormatTimeUntilReset(DateTimeOffset reset)
     {
         var remaining = reset - DateTimeOffset.Now;
-        if (remaining <= TimeSpan.Zero) return "Reinicio del uso pendiente";
-        if (remaining < TimeSpan.FromDays(1)) return "Reinicio del uso en menos de 1 día";
+        if (remaining <= TimeSpan.Zero) return AppText.Get("ResetPending");
+        if (remaining < TimeSpan.FromDays(1)) return AppText.Get("ResetUnderDay");
 
         var days = (int)Math.Ceiling(remaining.TotalDays);
-        return days == 1 ? "Reinicio del uso en 1 día" : $"Reinicio del uso en {days} días";
+        return AppText.Get(days == 1 ? "ResetOneDay" : "ResetDays", days);
     }
 
     private Border BuildCard()
@@ -215,7 +215,7 @@ public sealed class UsageFlyoutWindow : Window
     private void ConfigurePinButton(Button button, double width, double height, double iconSize)
     {
         button.Content = CreatePinIcon(iconSize);
-        button.ToolTip = "Fijar widget";
+        button.ToolTip = AppText.Get("Pin");
         button.Width = width;
         button.Height = height;
         button.Padding = new Thickness(0);

@@ -15,6 +15,7 @@ public sealed class UsageApplication : System.Windows.Application
 {
     private const string StartupKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string StartupValueName = "CodexUsageMeter";
+    private const string AppRegistryPath = @"Software\CodexUsageMeter";
     private readonly IUsageProvider _provider = new CodexSessionUsageProvider();
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
@@ -23,11 +24,11 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
-    private readonly Forms.ToolStripMenuItem _startupItem = new("Iniciar con Windows") { CheckOnClick = true };
-    private readonly Forms.ToolStripMenuItem _widgetItem = new("Mostrar widget fijo") { CheckOnClick = true };
-    private readonly Forms.ToolStripMenuItem _disabledWidgetItem = new("Desactivado") { CheckOnClick = true };
-    private readonly Forms.ToolStripMenuItem _normalWidgetItem = new("Normal") { CheckOnClick = true };
-    private readonly Forms.ToolStripMenuItem _compactWidgetItem = new("Compacto") { CheckOnClick = true };
+    private Forms.ToolStripMenuItem _startupItem = null!;
+    private Forms.ToolStripMenuItem _widgetItem = null!;
+    private Forms.ToolStripMenuItem _disabledWidgetItem = null!;
+    private Forms.ToolStripMenuItem _normalWidgetItem = null!;
+    private Forms.ToolStripMenuItem _compactWidgetItem = null!;
     private UsageFlyoutWindow? _flyout;
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
@@ -40,9 +41,13 @@ public sealed class UsageApplication : System.Windows.Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         _settings = _settingsStore.Load();
+        var language = _settings.Language ?? ReadInstallerLanguage() ?? AppText.DetectLanguage();
+        AppText.SetLanguage(language);
+        _settings.Language = AppText.CurrentLanguage;
+        _settingsStore.Save(_settings);
         if (!_settings.WidgetEnabled) _settings.WidgetPinned = false;
 
-        _notifyIcon.Text = "Codex Usage Meter: buscando datos…";
+        _notifyIcon.Text = AppText.Get("Searching");
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.MouseClick += OnTrayMouseClick;
@@ -55,12 +60,6 @@ public sealed class UsageApplication : System.Windows.Application
             _flyoutCloseTimer.Stop();
             if (_flyout is { IsPinned: false, IsMouseOver: false }) _flyout.Hide();
         };
-        _widgetItem.Checked = _settings.WidgetPinned;
-        _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
-
-        _startupItem.Checked = IsStartupEnabled();
-        _startupItem.CheckedChanged += (_, _) => SetStartupEnabled(_startupItem.Checked);
-
         _refreshTimer.Tick += async (_, _) => await RefreshAsync();
         _fileChangeTimer.Tick += async (_, _) =>
         {
@@ -77,15 +76,20 @@ public sealed class UsageApplication : System.Windows.Application
     {
         var menu = new Forms.ContextMenuStrip();
         var title = new Forms.ToolStripMenuItem("Codex Usage Meter") { Enabled = false };
-        var refresh = new Forms.ToolStripMenuItem("Actualizar ahora");
+        var refresh = new Forms.ToolStripMenuItem(AppText.Get("Refresh"));
         refresh.Click += async (_, _) => await RefreshAsync();
-        var openSessions = new Forms.ToolStripMenuItem("Abrir sesiones de Codex");
+        var openSessions = new Forms.ToolStripMenuItem(AppText.Get("OpenSessions"));
         openSessions.Click += (_, _) => OpenSessionsFolder();
-        var keepVisible = new Forms.ToolStripMenuItem("Mostrar siempre en la bandeja…");
+        var keepVisible = new Forms.ToolStripMenuItem(AppText.Get("KeepTray"));
         keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
         var notifications = BuildNotificationsMenu();
         var widgetSize = BuildWidgetSizeMenu();
-        var exit = new Forms.ToolStripMenuItem("Salir");
+        var language = BuildLanguageMenu();
+        _widgetItem = new Forms.ToolStripMenuItem(AppText.Get("ShowPinned")) { CheckOnClick = true, Checked = _settings.WidgetPinned };
+        _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
+        _startupItem = new Forms.ToolStripMenuItem(AppText.Get("StartWindows")) { CheckOnClick = true, Checked = IsStartupEnabled() };
+        _startupItem.CheckedChanged += (_, _) => SetStartupEnabled(_startupItem.Checked);
+        var exit = new Forms.ToolStripMenuItem(AppText.Get("Exit"));
         exit.Click += (_, _) => Shutdown();
 
         menu.Items.AddRange([
@@ -100,6 +104,7 @@ public sealed class UsageApplication : System.Windows.Application
             notifications,
             _widgetItem,
             widgetSize,
+            language,
             _startupItem,
             new Forms.ToolStripSeparator(),
             exit
@@ -109,7 +114,10 @@ public sealed class UsageApplication : System.Windows.Application
 
     private Forms.ToolStripMenuItem BuildWidgetSizeMenu()
     {
-        var menu = new Forms.ToolStripMenuItem("Widget");
+        var menu = new Forms.ToolStripMenuItem(AppText.Get("Widget"));
+        _disabledWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Disabled")) { CheckOnClick = true };
+        _normalWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Normal")) { CheckOnClick = true };
+        _compactWidgetItem = new Forms.ToolStripMenuItem(AppText.Get("Compact")) { CheckOnClick = true };
         _disabledWidgetItem.Checked = !_settings.WidgetEnabled;
         _normalWidgetItem.Checked = _settings.WidgetEnabled && !_settings.WidgetCompact;
         _compactWidgetItem.Checked = _settings.WidgetEnabled && _settings.WidgetCompact;
@@ -120,29 +128,53 @@ public sealed class UsageApplication : System.Windows.Application
         return menu;
     }
 
+    private Forms.ToolStripMenuItem BuildLanguageMenu()
+    {
+        var menu = new Forms.ToolStripMenuItem(AppText.Get("Language"));
+        var english = new Forms.ToolStripMenuItem("English") { Checked = AppText.CurrentLanguage == AppText.English };
+        var spanish = new Forms.ToolStripMenuItem("Español") { Checked = AppText.CurrentLanguage == AppText.Spanish };
+        english.Click += (_, _) => ChangeLanguage(AppText.English);
+        spanish.Click += (_, _) => ChangeLanguage(AppText.Spanish);
+        menu.DropDownItems.AddRange([english, spanish]);
+        return menu;
+    }
+
+    private void ChangeLanguage(string language)
+    {
+        AppText.SetLanguage(language);
+        _settings.Language = AppText.CurrentLanguage;
+        _settingsStore.Save(_settings);
+        var previous = _notifyIcon.ContextMenuStrip;
+        _notifyIcon.ContextMenuStrip = BuildMenu();
+        previous?.Dispose();
+        _flyout?.SetPinned(_flyout.IsPinned);
+        _flyout?.UpdateUsage(_latest);
+        _ = RefreshAsync();
+    }
+
     private Forms.ToolStripMenuItem BuildNotificationsMenu()
     {
-        var menu = new Forms.ToolStripMenuItem("Notificaciones");
+        var menu = new Forms.ToolStripMenuItem(AppText.Get("Notifications"));
         menu.DropDownItems.Add(CreateNotificationOption(
-            "Al cambiar el porcentaje",
+            AppText.Get("NotifyChange"),
             _settings.NotifyOnPercentChange,
             value => _settings.NotifyOnPercentChange = value));
         menu.DropDownItems.Add(new Forms.ToolStripSeparator());
         menu.DropDownItems.Add(CreateNotificationOption(
-            "Al alcanzar 50 % usado",
+            AppText.Get("Notify50"),
             _settings.NotifyAt50Percent,
             value => _settings.NotifyAt50Percent = value));
         menu.DropDownItems.Add(CreateNotificationOption(
-            "Al alcanzar 75 % usado",
+            AppText.Get("Notify75"),
             _settings.NotifyAt75Percent,
             value => _settings.NotifyAt75Percent = value));
         menu.DropDownItems.Add(CreateNotificationOption(
-            "Al alcanzar 90 % usado",
+            AppText.Get("Notify90"),
             _settings.NotifyAt90Percent,
             value => _settings.NotifyAt90Percent = value));
         menu.DropDownItems.Add(new Forms.ToolStripSeparator());
         menu.DropDownItems.Add(CreateNotificationOption(
-            "Al restablecerse el límite",
+            AppText.Get("NotifyReset"),
             _settings.NotifyOnReset,
             value => _settings.NotifyOnReset = value));
         return menu;
@@ -185,11 +217,11 @@ public sealed class UsageApplication : System.Windows.Application
                     _settings.ToNotificationOptions());
                 _latest = snapshot;
                 var available = (int)Math.Round(snapshot.AvailablePercent);
-                _statusItem.Text = $"Disponible: {available}%  ·  Usado: {snapshot.UsedPercent:0.#}%";
+                _statusItem.Text = AppText.Get("Available", available, snapshot.UsedPercent.ToString("0.#", AppText.Culture));
                 _resetItem.Text = snapshot.ResetsAt is { } reset
-                    ? $"Se reinicia: {reset.ToLocalTime():g}"
-                    : "Reinicio: sin datos";
-                _notifyIcon.Text = TruncateTooltip($"Codex: {available}% disponible");
+                    ? AppText.Get("ResetAt", reset.ToLocalTime().ToString("g", AppText.Culture))
+                    : AppText.Get("NoReset");
+                _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
                 _flyout?.UpdateUsage(snapshot);
                 ShowUsageNotification(notification, snapshot);
@@ -197,9 +229,9 @@ public sealed class UsageApplication : System.Windows.Application
             else
             {
                 _latest = null;
-                _statusItem.Text = result.Error ?? "No hay datos de uso";
-                _resetItem.Text = "Abre Codex y ejecuta al menos una tarea";
-                _notifyIcon.Text = TruncateTooltip("Codex Usage Meter: sin datos");
+                _statusItem.Text = AppText.Get("NoUsage");
+                _resetItem.Text = AppText.Get("RunTask");
+                _notifyIcon.Text = TruncateTooltip($"Codex Usage Meter: {AppText.Get("NoData")}");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
                 _flyout?.UpdateUsage(null, result.Error);
             }
@@ -220,11 +252,11 @@ public sealed class UsageApplication : System.Windows.Application
 
         _notifyIcon.BalloonTipTitle = notification.Kind switch
         {
-            UsageNotificationKind.ThresholdReached => $"Codex ha alcanzado {notification.Threshold}% de uso",
-            UsageNotificationKind.LimitReset => "El límite de Codex se ha restablecido",
-            _ => "El uso de Codex ha cambiado"
+            UsageNotificationKind.ThresholdReached => AppText.Get("Threshold", notification.Threshold),
+            UsageNotificationKind.LimitReset => AppText.Get("LimitReset"),
+            _ => AppText.Get("UsageChanged")
         };
-        _notifyIcon.BalloonTipText = $"{snapshot.AvailablePercent:0}% disponible ({snapshot.UsedPercent:0.#}% usado).";
+        _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", snapshot.AvailablePercent.ToString("0", AppText.Culture), snapshot.UsedPercent.ToString("0.#", AppText.Culture));
         _notifyIcon.ShowBalloonTip(5000);
     }
 
@@ -308,13 +340,13 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (_latest is { } snapshot)
         {
-            _notifyIcon.BalloonTipTitle = "Uso de Codex";
-            _notifyIcon.BalloonTipText = $"{snapshot.AvailablePercent:0}% disponible ({snapshot.UsedPercent:0.#}% usado).";
+            _notifyIcon.BalloonTipTitle = AppText.Get("BalloonUsage");
+            _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", snapshot.AvailablePercent.ToString("0", AppText.Culture), snapshot.UsedPercent.ToString("0.#", AppText.Culture));
         }
         else
         {
-            _notifyIcon.BalloonTipTitle = "Uso de Codex no disponible";
-            _notifyIcon.BalloonTipText = "Ejecuta una tarea en Codex y vuelve a actualizar.";
+            _notifyIcon.BalloonTipTitle = AppText.Get("BalloonUnavailable");
+            _notifyIcon.BalloonTipText = AppText.Get("BalloonNoData");
         }
         _notifyIcon.ShowBalloonTip(4000);
     }
@@ -468,6 +500,17 @@ public sealed class UsageApplication : System.Windows.Application
         {
             return false;
         }
+    }
+
+    private static string? ReadInstallerLanguage()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(AppRegistryPath);
+        return key?.GetValue("InstallLanguage")?.ToString()?.ToLowerInvariant() switch
+        {
+            "spanish" or "es-es" => AppText.Spanish,
+            "english" or "en-us" => AppText.English,
+            _ => null
+        };
     }
 
     private static void SetStartupEnabled(bool enabled)

@@ -1,5 +1,7 @@
 # English and Spanish localization plan
 
+> Implemented for version 0.4.0. This document also records the intended precedence and verification contract for future languages.
+
 ## Goal
 
 Offer English and Spanish throughout the application and let the user choose the initial language in the installer. Upgrades must preserve the existing choice, while silent WinGet installations should select a sensible language automatically.
@@ -19,8 +21,8 @@ The stored values will be stable culture codes: `en-US` and `es-ES`.
 
 ### 1. Extract application text
 
-- Move every visible string from the tray menu, widget, notifications, dialogs and errors into `.resx` resources.
-- Keep English in the neutral resource and Spanish in `es-ES`.
+- Move every visible string from the tray menu, widget, notifications and dialogs into matching application catalogs.
+- Keep English and Spanish catalogs with identical stable keys.
 - Introduce a small text-catalog service so programmatic WPF and WinForms UI use the same source.
 - Localize formatted values through the active culture, including percentages, dates, numbers and singular or plural reset countdowns.
 

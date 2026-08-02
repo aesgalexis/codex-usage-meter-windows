@@ -45,11 +45,18 @@ CloseApplications=force
 RestartApplications=no
 SetupLogging=yes
 
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+
 [Files]
 Source: "{#SourceDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Codex Usage Meter"; Filename: "{app}\{#MyAppExeName}"
 
+[Registry]
+Root: HKCU; Subkey: "Software\CodexUsageMeter"; ValueType: string; ValueName: "InstallLanguage"; ValueData: "{language}"; Flags: uninsdeletevalue; Check: not WizardSilent
+
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Abrir Codex Usage Meter"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,Codex Usage Meter}"; Flags: nowait postinstall skipifsilent
