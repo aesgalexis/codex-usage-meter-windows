@@ -25,8 +25,8 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Button _compactPin = new();
     private readonly TextBlock _compactPercent = new();
     private readonly TextBlock _compactDots = new();
-    private readonly TextBlock _modelIcon = new();
-    private readonly TextBlock _compactModelIcon = new();
+    private readonly ContentControl _modelIcon = new();
+    private readonly ContentControl _compactModelIcon = new();
     private readonly Border _compactFill = new();
     private readonly Border _activityShine = new();
     private readonly TranslateTransform _shineTranslation = new();
@@ -147,26 +147,50 @@ public sealed class UsageFlyoutWindow : Window
 
     private void SetModelIcon(string? model)
     {
-        var symbol = model?.ToLowerInvariant() switch
-        {
-            { } value when value.Contains("sol") => "☀",
-            { } value when value.Contains("luna") => "☾",
-            // The astronomical Earth glyph is easily mistaken for the Sun at this size.
-            // Segoe MDL2 Assets provides a clear, monochrome globe outline instead.
-            { } value when value.Contains("terra") => "\uE774",
-            null or "" => string.Empty,
-            _ => "◆"
-        };
-        var fontFamily = model?.Contains("terra", StringComparison.OrdinalIgnoreCase) == true
-            ? new FontFamily("Segoe MDL2 Assets")
-            : new FontFamily("Segoe UI Symbol");
         foreach (var icon in new[] { _modelIcon, _compactModelIcon })
         {
-            icon.Text = symbol;
-            icon.FontFamily = fontFamily;
+            icon.Content = CreateModelGlyph(model);
             icon.ToolTip = model;
-            icon.Visibility = string.IsNullOrEmpty(symbol) ? Visibility.Collapsed : Visibility.Visible;
+            icon.Visibility = string.IsNullOrWhiteSpace(model) ? Visibility.Collapsed : Visibility.Visible;
         }
+    }
+
+    private static FrameworkElement? CreateModelGlyph(string? model)
+    {
+        if (string.IsNullOrWhiteSpace(model)) return null;
+        var normalized = model.ToLowerInvariant();
+        if (normalized.Contains("terra"))
+        {
+            var globe = new Grid { Width = 14, Height = 14 };
+            foreach (var geometry in new[]
+            {
+                "M8,1 A7,7 0 1 1 8,15 A7,7 0 1 1 8,1",
+                "M8,1 C4.8,4.2 4.8,11.8 8,15 C11.2,11.8 11.2,4.2 8,1",
+                "M1.4,8 C4.8,5.7 11.2,5.7 14.6,8 C11.2,10.3 4.8,10.3 1.4,8"
+            })
+            {
+                globe.Children.Add(new ShapePath
+                {
+                    Data = Geometry.Parse(geometry),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 1.15,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round,
+                    Fill = Brushes.Transparent
+                });
+            }
+            return globe;
+        }
+
+        var symbol = normalized.Contains("sol") ? "☀" : normalized.Contains("luna") ? "☾" : "◆";
+        return new TextBlock
+        {
+            Text = symbol,
+            FontFamily = new FontFamily("Segoe UI Symbol"),
+            FontSize = 15,
+            Foreground = Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center
+        };
     }
 
     private static string FormatWindow(int? minutes) => minutes switch
@@ -208,7 +232,7 @@ public sealed class UsageFlyoutWindow : Window
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-        _modelIcon.FontFamily = new FontFamily("Segoe UI Symbol"); _modelIcon.FontSize = 15; _modelIcon.Foreground = Brushes.White; _modelIcon.Margin = new Thickness(7, 0, 0, 0); _modelIcon.VerticalAlignment = VerticalAlignment.Center;
+        _modelIcon.Width = 16; _modelIcon.Height = 16; _modelIcon.Margin = new Thickness(7, 0, 0, 0); _modelIcon.VerticalAlignment = VerticalAlignment.Center;
         var titleGroup = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
         titleGroup.Children.Add(title); titleGroup.Children.Add(_modelIcon);
         ConfigurePinButton(_pin, 34, 30, 20);
@@ -254,7 +278,7 @@ public sealed class UsageFlyoutWindow : Window
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-        _compactModelIcon.FontFamily = new FontFamily("Segoe UI Symbol"); _compactModelIcon.FontSize = 14; _compactModelIcon.Foreground = Brushes.White; _compactModelIcon.Margin = new Thickness(6, 0, 0, 0); _compactModelIcon.VerticalAlignment = VerticalAlignment.Center;
+        _compactModelIcon.Width = 15; _compactModelIcon.Height = 15; _compactModelIcon.Margin = new Thickness(6, 0, 0, 0); _compactModelIcon.VerticalAlignment = VerticalAlignment.Center;
         _compactPercent.Foreground = Brushes.White; _compactPercent.FontSize = 13; _compactPercent.FontWeight = FontWeights.SemiBold; _compactPercent.VerticalAlignment = VerticalAlignment.Center; _compactPercent.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
         _compactDots.Foreground = Brushes.White; _compactDots.FontSize = 9; _compactDots.VerticalAlignment = VerticalAlignment.Center; _compactDots.Margin = new Thickness(6, 0, 5, 0);
         ConfigurePinButton(_compactPin, 28, 28, 17);

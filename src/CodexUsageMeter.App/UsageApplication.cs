@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using CodexUsageMeter.Core;
@@ -21,6 +23,8 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
+    private readonly DispatcherTimer _activityStateTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
+    private readonly DispatcherTimer _shineTimer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly DispatcherTimer _flyoutCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
@@ -35,6 +39,8 @@ public sealed class UsageApplication : System.Windows.Application
     private UsageSnapshot? _latest;
     private AppSettings _settings = new();
     private FileSystemWatcher? _sessionWatcher;
+    private string? _pendingActivityPath;
+    private readonly Dictionary<string, bool> _activeTaskFiles = new(StringComparer.OrdinalIgnoreCase);
     private bool _isRefreshing;
     private bool _latestIsStale;
     private UsageFailureKind _latestFailureKind;
@@ -69,6 +75,13 @@ public sealed class UsageApplication : System.Windows.Application
             _fileChangeTimer.Stop();
             await RefreshAsync();
         };
+        _activityStateTimer.Tick += async (_, _) =>
+        {
+            _activityStateTimer.Stop();
+            var path = _pendingActivityPath;
+            if (path is not null) await UpdateActivityStateAsync(path);
+        };
+        _shineTimer.Tick += (_, _) => _flyout?.PlayShine(force: true);
         EnsureSessionWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
@@ -304,7 +317,7 @@ public sealed class UsageApplication : System.Windows.Application
             _sessionWatcher = new FileSystemWatcher(sessionsPath, "*.jsonl")
             {
                 IncludeSubdirectories = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.Size,
                 EnableRaisingEvents = true
             };
             _sessionWatcher.Changed += OnSessionFileChanged;
@@ -328,16 +341,83 @@ public sealed class UsageApplication : System.Windows.Application
     {
         Dispatcher.BeginInvoke(() =>
         {
-            _flyout?.PlayShine();
+            _pendingActivityPath = e.FullPath;
+            _activityStateTimer.Stop();
+            _activityStateTimer.Start();
             _fileChangeTimer.Stop();
             _fileChangeTimer.Start();
         });
+    }
+
+    private async Task UpdateActivityStateAsync(string path)
+    {
+        var isActive = await ReadLatestTaskStateAsync(path);
+        if (isActive is null) return;
+
+        if (isActive.Value) _activeTaskFiles[path] = true;
+        else _activeTaskFiles.Remove(path);
+
+        if (_activeTaskFiles.Values.Any(active => active))
+        {
+            if (!_shineTimer.IsEnabled) _flyout?.PlayShine(force: true);
+            _shineTimer.Start();
+        }
+        else
+        {
+            _shineTimer.Stop();
+        }
+    }
+
+    private static async Task<bool?> ReadLatestTaskStateAsync(string path)
+    {
+        try
+        {
+            await using var stream = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                bufferSize: 4096,
+                useAsync: true);
+            var bytesToRead = (int)Math.Min(stream.Length, 128 * 1024);
+            stream.Seek(-bytesToRead, SeekOrigin.End);
+            var buffer = new byte[bytesToRead];
+            var read = await stream.ReadAsync(buffer);
+            var lines = Encoding.UTF8.GetString(buffer, 0, read)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            for (var index = lines.Length - 1; index >= 0; index--)
+            {
+                try
+                {
+                    using var document = JsonDocument.Parse(lines[index].TrimEnd('\r'));
+                    var root = document.RootElement;
+                    if (!root.TryGetProperty("type", out var type) || type.GetString() != "event_msg" ||
+                        !root.TryGetProperty("payload", out var payload) ||
+                        !payload.TryGetProperty("type", out var payloadType)) continue;
+
+                    var eventType = payloadType.GetString();
+                    if (eventType == "task_started") return true;
+                    if (eventType == "task_complete") return false;
+                }
+                catch (JsonException)
+                {
+                    // The first or last line may be incomplete while Codex is writing it.
+                }
+            }
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+
+        return null;
     }
 
     private void OnSessionWatcherError(object sender, ErrorEventArgs e)
     {
         Dispatcher.BeginInvoke(() =>
         {
+            _activeTaskFiles.Clear();
+            _shineTimer.Stop();
             _sessionWatcher?.Dispose();
             _sessionWatcher = null;
         });
@@ -544,6 +624,8 @@ public sealed class UsageApplication : System.Windows.Application
     {
         _refreshTimer.Stop();
         _fileChangeTimer.Stop();
+        _activityStateTimer.Stop();
+        _shineTimer.Stop();
         _flyoutCloseTimer.Stop();
         _sessionWatcher?.Dispose();
         _flyout?.Close();
