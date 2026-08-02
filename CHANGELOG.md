@@ -11,6 +11,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Compact usage card that opens when hovering over or left-clicking the tray icon.
 - Pinable, always-visible desktop widget with drag-and-drop positioning.
 - Persistent widget visibility and screen position across restarts.
+- Compact percentage typography and an icon-only pin control with a visible active state.
 
 ## [0.2.2] - 2026-08-02
 

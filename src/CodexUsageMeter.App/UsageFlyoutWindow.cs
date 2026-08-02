@@ -7,6 +7,7 @@ using Button = System.Windows.Controls.Button;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Cursors = System.Windows.Input.Cursors;
+using FontFamily = System.Windows.Media.FontFamily;
 using ProgressBar = System.Windows.Controls.ProgressBar;
 
 namespace CodexUsageMeter.App;
@@ -24,7 +25,7 @@ public sealed class UsageFlyoutWindow : Window
     public UsageFlyoutWindow()
     {
         Width = 310;
-        Height = 174;
+        Height = 154;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -44,7 +45,11 @@ public sealed class UsageFlyoutWindow : Window
     public void SetPinned(bool pinned)
     {
         IsPinned = pinned;
-        _pin.Content = pinned ? "Soltar" : "Fijar";
+        _pin.Content = "\uE718";
+        _pin.ToolTip = pinned ? "Soltar widget" : "Fijar widget";
+        _pin.Background = new SolidColorBrush(pinned
+            ? Color.FromRgb(38, 135, 89)
+            : Color.FromRgb(55, 59, 68));
         _close.Visibility = pinned ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -80,7 +85,12 @@ public sealed class UsageFlyoutWindow : Window
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-        _pin.Content = "Fijar";
+        _pin.Content = "\uE718";
+        _pin.FontFamily = new FontFamily("Segoe MDL2 Assets");
+        _pin.ToolTip = "Fijar widget";
+        _pin.Width = 30;
+        _pin.Height = 26;
+        _pin.Padding = new Thickness(0);
         StyleButton(_pin);
         _pin.Click += (_, _) => { SetPinned(!IsPinned); PinChanged?.Invoke(this, IsPinned); };
         _close.Content = "×";
@@ -97,7 +107,7 @@ public sealed class UsageFlyoutWindow : Window
         Grid.SetColumn(_close, 2); header.Children.Add(_close);
         root.Children.Add(header);
 
-        _available.FontSize = 27; _available.FontWeight = FontWeights.SemiBold; _available.Foreground = Brushes.White; _available.Margin = new Thickness(0, 12, 0, 6);
+        _available.FontSize = 18; _available.FontWeight = FontWeights.SemiBold; _available.Foreground = Brushes.White; _available.Margin = new Thickness(0, 9, 0, 6);
         Grid.SetRow(_available, 1); root.Children.Add(_available);
         _progress.Height = 6; _progress.Minimum = 0; _progress.Maximum = 100; _progress.Foreground = new SolidColorBrush(Color.FromRgb(47, 190, 122)); _progress.Background = new SolidColorBrush(Color.FromRgb(65, 69, 78));
         Grid.SetRow(_progress, 2); root.Children.Add(_progress);
