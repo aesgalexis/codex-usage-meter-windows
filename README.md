@@ -17,7 +17,7 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Shows a compact usage card when you hover over or left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
 - Displays how many days remain until the usage limit resets.
-- Shows the locally reported Codex credit balance beneath the reset countdown.
+- Shows the locally reported number of available resets beneath the reset countdown.
 - Uses the same green, amber, or red status color in the tray icon and widget bar, based on the rounded available percentage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
 - Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.
@@ -133,6 +133,7 @@ tests/
 
 ## Roadmap
 
+- English and Spanish localization following the [localization plan](docs/localization-plan.md).
 - Optional corner snapping and widget appearance controls.
 - Native Windows toast notifications and richer scheduling controls.
 - Installer and automatic updates.

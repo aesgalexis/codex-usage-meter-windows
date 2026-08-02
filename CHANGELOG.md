@@ -18,6 +18,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Tray icon and widget bar now share colors and rounded percentage thresholds.
 - Complete vector pin shown downward when released and rotated 45 degrees when fixed.
 - Clear usage-reset countdown label and locally reported credit balance.
+- Borderless pin hover state, a more compact widget header, and clearer available-resets wording.
 
 ## [0.2.2] - 2026-08-02
 

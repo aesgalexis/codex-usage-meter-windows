@@ -25,7 +25,7 @@ public sealed class UsageFlyoutWindow : Window
     public UsageFlyoutWindow()
     {
         Width = 310;
-        Height = 168;
+        Height = 154;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -56,7 +56,7 @@ public sealed class UsageFlyoutWindow : Window
             _available.Text = "Sin datos";
             _details.Text = error ?? "Ejecuta una tarea en Codex";
             _reset.Text = "Actualizaremos la tarjeta automáticamente";
-            _credits.Text = "Créditos: sin datos";
+            _credits.Text = "Resets disponibles: sin datos";
             _progress.Value = 0;
             _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             return;
@@ -69,8 +69,8 @@ public sealed class UsageFlyoutWindow : Window
             ? FormatTimeUntilReset(reset)
             : $"Actualizado {snapshot.ObservedAt.ToLocalTime():t}";
         _credits.Text = snapshot.CreditBalance is { } balance
-            ? $"Créditos: {balance:0.##}"
-            : "Créditos: sin datos";
+            ? $"Resets disponibles: {balance:0.##}"
+            : "Resets disponibles: sin datos";
         _progress.Value = snapshot.AvailablePercent;
         _progress.Foreground = new SolidColorBrush(available switch
         {
@@ -92,7 +92,7 @@ public sealed class UsageFlyoutWindow : Window
 
     private Border BuildCard()
     {
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = new Grid { Margin = new Thickness(18, 10, 18, 14) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -110,6 +110,7 @@ public sealed class UsageFlyoutWindow : Window
         _pin.Background = Brushes.Transparent;
         _pin.BorderBrush = Brushes.Transparent;
         StyleButton(_pin);
+        _pin.Template = CreateIconButtonTemplate();
         _pin.Click += (_, _) => { SetPinned(!IsPinned); PinChanged?.Invoke(this, IsPinned); };
         header.Children.Add(title);
         Grid.SetColumn(_pin, 1); header.Children.Add(_pin);
@@ -149,6 +150,14 @@ public sealed class UsageFlyoutWindow : Window
             Stretch = Stretch.Uniform
         };
         return new Viewbox { Width = 20, Height = 20, Child = pin };
+    }
+
+    private static ControlTemplate CreateIconButtonTemplate()
+    {
+        var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+        presenter.SetValue(HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+        presenter.SetValue(VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
+        return new ControlTemplate(typeof(Button)) { VisualTree = presenter };
     }
 
     private static bool IsInsideButton(DependencyObject? element)
