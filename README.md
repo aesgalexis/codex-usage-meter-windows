@@ -38,6 +38,12 @@ The optional widget can use a detailed normal card or a minimal compact usage ba
 | --- | --- |
 | ![Normal Codex usage widget](docs/assets/widget-normal.png) | ![Compact Codex usage widget](docs/assets/widget-compact.png) |
 
+### Languages
+
+The tray menu and usage displays support English and Spanish, with immediate switching from the language submenu.
+
+![Codex Usage Meter tray menu in English](docs/assets/tray-menu-english.png)
+
 ## Installation
 
 ### Portable release
