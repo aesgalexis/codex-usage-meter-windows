@@ -19,6 +19,7 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
 - Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.
 - Opens the Windows setting used to keep its icon permanently visible.
+- Uses a stable native notification-area identity so Windows can retain that visibility choice across upgrades.
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
 

@@ -19,7 +19,7 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
-    private readonly Forms.NotifyIcon _notifyIcon = new() { Visible = true };
+    private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _startupItem = new("Iniciar con Windows") { CheckOnClick = true };
@@ -39,6 +39,7 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.MouseClick += OnTrayMouseClick;
+        _notifyIcon.Visible = true;
 
         _startupItem.Checked = IsStartupEnabled();
         _startupItem.CheckedChanged += (_, _) => SetStartupEnabled(_startupItem.Checked);
@@ -307,7 +308,22 @@ public sealed class UsageApplication : System.Windows.Application
     private static bool IsStartupEnabled()
     {
         using var key = Registry.CurrentUser.OpenSubKey(StartupKeyPath);
-        return key?.GetValue(StartupValueName) is string;
+        if (key?.GetValue(StartupValueName) is not string configuredPath ||
+            string.IsNullOrWhiteSpace(Environment.ProcessPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var normalizedConfiguredPath = Path.GetFullPath(configuredPath.Trim().Trim('"'));
+            var normalizedProcessPath = Path.GetFullPath(Environment.ProcessPath);
+            return string.Equals(normalizedConfiguredPath, normalizedProcessPath, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
     }
 
     private static void SetStartupEnabled(bool enabled)

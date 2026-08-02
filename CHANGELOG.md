@@ -6,6 +6,13 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-02
+
+### Fixed
+
+- Registers the notification area icon with a stable native GUID so Windows can preserve its visibility choice across restarts and upgrades.
+- Detects stale start-with-Windows entries that still point to an older portable executable.
+
 ## [0.2.1] - 2026-08-02
 
 ### Added

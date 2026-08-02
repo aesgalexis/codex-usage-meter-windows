@@ -1,5 +1,7 @@
 using CodexUsageMeter.Infrastructure;
 using CodexUsageMeter.Core;
+using CodexUsageMeter.App;
+using System.Drawing;
 
 const string validEvent = """
 {"timestamp":"2026-08-02T10:24:28.684Z","type":"event_msg","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":33.0,"window_minutes":10080,"resets_at":1786180607},"secondary":null,"credits":{"has_credits":false,"unlimited":false,"balance":"12.50"},"plan_type":"plus"}}}
@@ -55,6 +57,14 @@ var reset = crossed with
 };
 var resetNotice = UsageNotificationEvaluator.Evaluate(crossed, reset, NotificationOptions.Default);
 Assert(resetNotice?.Kind == UsageNotificationKind.LimitReset, "El avance del reinicio con menor consumo debe detectarse.");
+
+using (var trayIcon = new StableNotifyIcon())
+{
+    trayIcon.Text = "Codex Usage Meter smoke test";
+    trayIcon.Icon = SystemIcons.Application;
+    trayIcon.Visible = true;
+    trayIcon.Visible = false;
+}
 
 Console.WriteLine("Todas las pruebas han pasado.");
 return;
