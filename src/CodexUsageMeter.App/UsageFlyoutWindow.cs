@@ -8,6 +8,7 @@ using Button = System.Windows.Controls.Button;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
 using Cursors = System.Windows.Input.Cursors;
+using FontFamily = System.Windows.Media.FontFamily;
 using ProgressBar = System.Windows.Controls.ProgressBar;
 using ShapePath = System.Windows.Shapes.Path;
 
@@ -24,6 +25,8 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Button _compactPin = new();
     private readonly TextBlock _compactPercent = new();
     private readonly TextBlock _compactDots = new();
+    private readonly TextBlock _modelIcon = new();
+    private readonly TextBlock _compactModelIcon = new();
     private readonly Border _compactFill = new();
     private readonly Border _activityShine = new();
     private readonly TranslateTransform _shineTranslation = new();
@@ -106,6 +109,7 @@ public sealed class UsageFlyoutWindow : Window
             _compactPercent.Text = AppText.Get("NoData");
             _compactDots.Text = string.Empty;
             _compactDots.ToolTip = null;
+            SetModelIcon(null);
             _compactFill.Background = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             UpdateCompactFill();
             return;
@@ -136,8 +140,27 @@ public sealed class UsageFlyoutWindow : Window
         _compactPercent.Text = $"{available}%";
         _compactDots.Text = string.Empty;
         _compactDots.ToolTip = null;
+        SetModelIcon(snapshot.ActiveModel);
         _compactFill.Background = _progress.Foreground;
         UpdateCompactFill();
+    }
+
+    private void SetModelIcon(string? model)
+    {
+        var symbol = model?.ToLowerInvariant() switch
+        {
+            { } value when value.Contains("sol") => "☀",
+            { } value when value.Contains("luna") => "☾",
+            { } value when value.Contains("terra") => "♁",
+            null or "" => string.Empty,
+            _ => "◆"
+        };
+        foreach (var icon in new[] { _modelIcon, _compactModelIcon })
+        {
+            icon.Text = symbol;
+            icon.ToolTip = model;
+            icon.Visibility = string.IsNullOrEmpty(symbol) ? Visibility.Collapsed : Visibility.Visible;
+        }
     }
 
     private static string FormatWindow(int? minutes) => minutes switch
@@ -179,8 +202,11 @@ public sealed class UsageFlyoutWindow : Window
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
+        _modelIcon.FontFamily = new FontFamily("Segoe UI Symbol"); _modelIcon.FontSize = 15; _modelIcon.Foreground = Brushes.White; _modelIcon.Margin = new Thickness(7, 0, 0, 0); _modelIcon.VerticalAlignment = VerticalAlignment.Center;
+        var titleGroup = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+        titleGroup.Children.Add(title); titleGroup.Children.Add(_modelIcon);
         ConfigurePinButton(_pin, 34, 30, 20);
-        header.Children.Add(title);
+        header.Children.Add(titleGroup);
         Grid.SetColumn(_pin, 1); header.Children.Add(_pin);
         root.Children.Add(header);
 
@@ -217,17 +243,20 @@ public sealed class UsageFlyoutWindow : Window
 
         var content = new Grid { Margin = new Thickness(14, 0, 7, 0) };
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         content.ColumnDefinitions.Add(new ColumnDefinition());
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        _compactModelIcon.FontFamily = new FontFamily("Segoe UI Symbol"); _compactModelIcon.FontSize = 14; _compactModelIcon.Foreground = Brushes.White; _compactModelIcon.Margin = new Thickness(6, 0, 0, 0); _compactModelIcon.VerticalAlignment = VerticalAlignment.Center;
         _compactPercent.Foreground = Brushes.White; _compactPercent.FontSize = 13; _compactPercent.FontWeight = FontWeights.SemiBold; _compactPercent.VerticalAlignment = VerticalAlignment.Center; _compactPercent.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
         _compactDots.Foreground = Brushes.White; _compactDots.FontSize = 9; _compactDots.VerticalAlignment = VerticalAlignment.Center; _compactDots.Margin = new Thickness(6, 0, 5, 0);
         ConfigurePinButton(_compactPin, 28, 28, 17);
         content.Children.Add(title);
-        Grid.SetColumn(_compactPercent, 1); content.Children.Add(_compactPercent);
-        Grid.SetColumn(_compactDots, 2); content.Children.Add(_compactDots);
-        Grid.SetColumn(_compactPin, 3); content.Children.Add(_compactPin);
+        Grid.SetColumn(_compactModelIcon, 1); content.Children.Add(_compactModelIcon);
+        Grid.SetColumn(_compactPercent, 2); content.Children.Add(_compactPercent);
+        Grid.SetColumn(_compactDots, 3); content.Children.Add(_compactDots);
+        Grid.SetColumn(_compactPin, 4); content.Children.Add(_compactPin);
 
         var layers = new Grid();
         layers.Clip = _compactClip;

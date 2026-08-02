@@ -223,7 +223,6 @@ public sealed class UsageApplication : System.Windows.Application
                 {
                     var notification = UsageNotificationEvaluator.Evaluate(previous, snapshot, _settings.ToNotificationOptions());
                     ShowUsageNotification(notification, snapshot);
-                    if (previous is null || snapshot.ObservedAt > previous.ObservedAt) _flyout?.PlayShine();
                 }
             }
             else
@@ -329,6 +328,7 @@ public sealed class UsageApplication : System.Windows.Application
     {
         Dispatcher.BeginInvoke(() =>
         {
+            _flyout?.PlayShine();
             _fileChangeTimer.Stop();
             _fileChangeTimer.Start();
         });

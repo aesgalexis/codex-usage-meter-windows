@@ -12,7 +12,8 @@ public sealed record UsageSnapshot(
     string? PlanType,
     decimal? CreditBalance,
     DateTimeOffset ObservedAt,
-    IReadOnlyList<UsageWindow>? RateLimitWindows = null)
+    IReadOnlyList<UsageWindow>? RateLimitWindows = null,
+    string? ActiveModel = null)
 {
     public double AvailablePercent => Math.Clamp(100d - UsedPercent, 0d, 100d);
     public IReadOnlyList<UsageWindow> Windows => RateLimitWindows ?? [new UsageWindow(UsedPercent, ResetsAt, WindowMinutes)];

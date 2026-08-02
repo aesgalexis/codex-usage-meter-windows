@@ -35,6 +35,8 @@ const string secondaryOnlyEvent = """
 """;
 var secondaryOnly = CodexRateLimitParser.Parse(secondaryOnlyEvent);
 Assert(secondaryOnly?.AvailablePercent == 65 && secondaryOnly.Windows.Count == 1, "Debe aceptarse una ventana secondary sin primary.");
+var modelObservation = CodexRateLimitParser.ParseModel("{\"timestamp\":\"2026-08-02T11:30:00Z\",\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-5.6-sol\"}}");
+Assert(modelObservation?.Model == "gpt-5.6-sol", "El modelo activo debe extraerse del turn_context.");
 
 var missingProvider = new CodexSessionUsageProvider(Path.Combine(Path.GetTempPath(), $"codex-usage-meter-missing-{Guid.NewGuid():N}"));
 var missingResult = await missingProvider.GetLatestAsync();
@@ -67,11 +69,13 @@ try
     var olderModified = Path.Combine(orderingSessions, "older-modified.jsonl");
     await File.WriteAllTextAsync(recentlyModified, olderSnapshot);
     var incompleteTailPrefix = new string('x', 1024 * 1024 + 100);
-    await File.WriteAllTextAsync(olderModified, $"{incompleteTailPrefix}{Environment.NewLine}{newestSnapshot}{Environment.NewLine}{olderSnapshot}");
+    var modelEvent = "{\"timestamp\":\"2026-08-02T11:30:00Z\",\"type\":\"turn_context\",\"payload\":{\"model\":\"gpt-5.6-terra\"}}";
+    await File.WriteAllTextAsync(olderModified, $"{incompleteTailPrefix}{Environment.NewLine}{modelEvent}{Environment.NewLine}{newestSnapshot}{Environment.NewLine}{olderSnapshot}");
     File.SetLastWriteTimeUtc(recentlyModified, DateTime.UtcNow);
     File.SetLastWriteTimeUtc(olderModified, DateTime.UtcNow.AddMinutes(-1));
     var orderedResult = await new CodexSessionUsageProvider(orderingRoot).GetLatestAsync();
     Assert(orderedResult.Snapshot?.ObservedAt == DateTimeOffset.Parse("2026-08-02T12:00:00Z"), "Debe elegirse el timestamp más reciente, no el archivo modificado más recientemente ni su última línea.");
+    Assert(orderedResult.Snapshot?.ActiveModel == "gpt-5.6-terra", "El snapshot debe conservar el modelo más reciente de su sesión.");
 }
 finally
 {

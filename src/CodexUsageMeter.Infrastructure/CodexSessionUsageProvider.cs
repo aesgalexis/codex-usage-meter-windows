@@ -77,8 +77,16 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
             var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
             UsageSnapshot? latest = null;
+            string? latestModel = null;
+            var latestModelAt = DateTimeOffset.MinValue;
             for (var index = lines.Length - 1; index >= 0; index--)
             {
+                var model = CodexRateLimitParser.ParseModel(lines[index].TrimEnd('\r'));
+                if (model is { } modelObservation && (latestModel is null || modelObservation.ObservedAt > latestModelAt))
+                {
+                    latestModel = modelObservation.Model;
+                    latestModelAt = modelObservation.ObservedAt;
+                }
                 if (!lines[index].Contains("\"rate_limits\"", StringComparison.Ordinal))
                 {
                     continue;
@@ -90,7 +98,7 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
                     latest = snapshot;
                 }
             }
-            return latest;
+            return latest is null ? null : latest with { ActiveModel = latestModel };
         }
         catch (IOException)
         {

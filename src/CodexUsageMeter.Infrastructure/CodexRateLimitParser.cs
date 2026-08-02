@@ -6,6 +6,21 @@ namespace CodexUsageMeter.Infrastructure;
 
 public static class CodexRateLimitParser
 {
+    public static (string Model, DateTimeOffset ObservedAt)? ParseModel(string jsonLine)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(jsonLine);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("type", out var type) || type.GetString() != "turn_context" ||
+                !root.TryGetProperty("payload", out var payload) ||
+                !payload.TryGetProperty("model", out var model) || model.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(model.GetString())) return null;
+            return (model.GetString()!, ReadTimestamp(root, "timestamp") ?? DateTimeOffset.MinValue);
+        }
+        catch (JsonException) { return null; }
+    }
+
     public static UsageSnapshot? Parse(string jsonLine)
     {
         try

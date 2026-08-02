@@ -16,6 +16,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Compact mode no longer converts credits into reset dots; dots stay hidden until Codex exposes a reliable reset count.
 - Compact-widget shine now runs once when opened or updated, avoiding unreliable claims that Codex is actively working.
 - Rounded clipping keeps the shine inside the capsule, with a short three-second burst cooldown.
+- Monochrome Sol, Luna and Terra model symbols in normal and compact widgets, sourced from the latest session turn context.
+- Shine triggering moved to immediate session writes so delayed snapshot refreshes cannot create late passes.
 - Removed the developer-oriented session-folder shortcut from the main tray menu and made compact activity animation automatic.
 
 ### Added
