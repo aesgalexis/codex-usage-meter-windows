@@ -10,6 +10,7 @@ public sealed class AppSettings
     public bool NotifyAt90Percent { get; set; } = true;
     public bool NotifyOnReset { get; set; } = true;
     public bool WidgetPinned { get; set; }
+    public bool WidgetEnabled { get; set; }
     public bool WidgetCompact { get; set; }
     public double? WidgetLeft { get; set; }
     public double? WidgetTop { get; set; }

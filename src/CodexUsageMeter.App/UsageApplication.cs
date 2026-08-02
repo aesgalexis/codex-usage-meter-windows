@@ -25,6 +25,7 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _startupItem = new("Iniciar con Windows") { CheckOnClick = true };
     private readonly Forms.ToolStripMenuItem _widgetItem = new("Mostrar widget fijo") { CheckOnClick = true };
+    private readonly Forms.ToolStripMenuItem _disabledWidgetItem = new("Desactivado") { CheckOnClick = true };
     private readonly Forms.ToolStripMenuItem _normalWidgetItem = new("Normal") { CheckOnClick = true };
     private readonly Forms.ToolStripMenuItem _compactWidgetItem = new("Compacto") { CheckOnClick = true };
     private UsageFlyoutWindow? _flyout;
@@ -39,6 +40,7 @@ public sealed class UsageApplication : System.Windows.Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         _settings = _settingsStore.Load();
+        if (!_settings.WidgetEnabled) _settings.WidgetPinned = false;
 
         _notifyIcon.Text = "Codex Usage Meter: buscando datos…";
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
@@ -107,12 +109,14 @@ public sealed class UsageApplication : System.Windows.Application
 
     private Forms.ToolStripMenuItem BuildWidgetSizeMenu()
     {
-        var menu = new Forms.ToolStripMenuItem("Tamaño del widget");
-        _normalWidgetItem.Checked = !_settings.WidgetCompact;
-        _compactWidgetItem.Checked = _settings.WidgetCompact;
-        _normalWidgetItem.Click += (_, _) => SetWidgetCompact(false);
-        _compactWidgetItem.Click += (_, _) => SetWidgetCompact(true);
-        menu.DropDownItems.AddRange([_normalWidgetItem, _compactWidgetItem]);
+        var menu = new Forms.ToolStripMenuItem("Widget");
+        _disabledWidgetItem.Checked = !_settings.WidgetEnabled;
+        _normalWidgetItem.Checked = _settings.WidgetEnabled && !_settings.WidgetCompact;
+        _compactWidgetItem.Checked = _settings.WidgetEnabled && _settings.WidgetCompact;
+        _normalWidgetItem.Click += (_, _) => SetWidgetMode(true, false);
+        _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, true);
+        _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, false);
+        menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem]);
         return menu;
     }
 
@@ -290,16 +294,36 @@ public sealed class UsageApplication : System.Windows.Application
             return;
         }
 
-        if (_flyout?.IsVisible == true && !_flyout.IsPinned) _flyout.Hide();
+        if (!_settings.WidgetEnabled)
+        {
+            ShowUsageBalloon();
+        }
+        else if (_flyout?.IsVisible == true && !_flyout.IsPinned) _flyout.Hide();
         else ShowFlyout(false, true);
+    }
+
+    private void ShowUsageBalloon()
+    {
+        if (_latest is { } snapshot)
+        {
+            _notifyIcon.BalloonTipTitle = "Uso de Codex";
+            _notifyIcon.BalloonTipText = $"{snapshot.AvailablePercent:0}% disponible ({snapshot.UsedPercent:0.#}% usado).";
+        }
+        else
+        {
+            _notifyIcon.BalloonTipTitle = "Uso de Codex no disponible";
+            _notifyIcon.BalloonTipText = "Ejecuta una tarea en Codex y vuelve a actualizar.";
+        }
+        _notifyIcon.ShowBalloonTip(4000);
     }
 
     private void ShowFlyout(bool pinned, bool activate = false)
     {
+        if (!_settings.WidgetEnabled) return;
         _flyoutCloseTimer.Stop();
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
-        _flyout.SetCompact(_flyout.IsPinned && _settings.WidgetCompact);
+        _flyout.SetCompact(_settings.WidgetCompact);
         _flyout.UpdateUsage(_latest);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
@@ -328,24 +352,39 @@ public sealed class UsageApplication : System.Windows.Application
         {
             _settings.WidgetPinned = pinned;
             _widgetItem.Checked = pinned;
-            _flyout.SetCompact(pinned && _settings.WidgetCompact);
             SaveWidgetPosition();
             _settingsStore.Save(_settings);
         };
         _flyout.PositionChanged += (_, _) => SaveWidgetPosition();
     }
 
-    private void SetWidgetCompact(bool compact)
+    private void SetWidgetMode(bool enabled, bool compact)
     {
+        _settings.WidgetEnabled = enabled;
         _settings.WidgetCompact = compact;
-        _normalWidgetItem.Checked = !compact;
-        _compactWidgetItem.Checked = compact;
+        _disabledWidgetItem.Checked = !enabled;
+        _normalWidgetItem.Checked = enabled && !compact;
+        _compactWidgetItem.Checked = enabled && compact;
+        if (!enabled)
+        {
+            _settings.WidgetPinned = false;
+            _widgetItem.Checked = false;
+            _flyout?.Hide();
+        }
         _settingsStore.Save(_settings);
-        if (_flyout is { IsPinned: true }) _flyout.SetCompact(compact);
+        if (enabled && _flyout is { IsVisible: true }) _flyout.SetCompact(compact);
     }
 
     private void SetWidgetPinned(bool pinned)
     {
+        if (pinned && !_settings.WidgetEnabled)
+        {
+            _settings.WidgetEnabled = true;
+            _settings.WidgetCompact = false;
+            _disabledWidgetItem.Checked = false;
+            _normalWidgetItem.Checked = true;
+            _compactWidgetItem.Checked = false;
+        }
         _settings.WidgetPinned = pinned;
         _settingsStore.Save(_settings);
         if (pinned) ShowFlyout(true);

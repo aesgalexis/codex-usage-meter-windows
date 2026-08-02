@@ -20,6 +20,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Clear usage-reset countdown label and locally reported credit balance.
 - Borderless pin hover state, a more compact widget header, and clearer available-resets wording.
 - Persistent compact widget mode with an integrated usage bar, reset dots and pin control.
+- Clear Disabled, Normal and Compact widget modes, with widgets disabled by default and the selected design used consistently on hover and when pinned.
 
 ## [0.2.2] - 2026-08-02
 
