@@ -8,3 +8,4 @@ artifacts/
 .dotnet/
 .dotnet-home/
 dotnet-install.ps1
+.winget-pkgs-submission/
