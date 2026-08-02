@@ -161,25 +161,14 @@ public sealed class UsageFlyoutWindow : Window
         var normalized = model.ToLowerInvariant();
         if (normalized.Contains("terra"))
         {
-            var globe = new Grid { Width = 14, Height = 14 };
-            foreach (var geometry in new[]
+            return new System.Windows.Shapes.Ellipse
             {
-                "M8,1 A7,7 0 1 1 8,15 A7,7 0 1 1 8,1",
-                "M8,1 C4.8,4.2 4.8,11.8 8,15 C11.2,11.8 11.2,4.2 8,1",
-                "M1.4,8 C4.8,5.7 11.2,5.7 14.6,8 C11.2,10.3 4.8,10.3 1.4,8"
-            })
-            {
-                globe.Children.Add(new ShapePath
-                {
-                    Data = Geometry.Parse(geometry),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 1.15,
-                    StrokeStartLineCap = PenLineCap.Round,
-                    StrokeEndLineCap = PenLineCap.Round,
-                    Fill = Brushes.Transparent
-                });
-            }
-            return globe;
+                Width = 8,
+                Height = 8,
+                Fill = Brushes.White,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
         }
 
         var symbol = normalized.Contains("sol") ? "☀" : normalized.Contains("luna") ? "☾" : "◆";
