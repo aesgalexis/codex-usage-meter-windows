@@ -17,7 +17,7 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Shows a compact usage card when you hover over or left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
 - Displays how many days remain until the usage limit resets.
-- Uses a green, amber, or red indicator according to the remaining usage.
+- Uses the same green, amber, or red status color in the tray icon and widget bar, based on the rounded available percentage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
 - Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.
 - Opens the Windows setting used to keep its icon permanently visible.

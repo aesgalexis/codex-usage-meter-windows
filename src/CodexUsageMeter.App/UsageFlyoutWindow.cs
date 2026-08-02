@@ -60,15 +60,23 @@ public sealed class UsageFlyoutWindow : Window
             _details.Text = error ?? "Ejecuta una tarea en Codex";
             _reset.Text = "Actualizaremos la tarjeta automáticamente";
             _progress.Value = 0;
+            _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             return;
         }
 
-        _available.Text = $"{snapshot.AvailablePercent:0}% disponible";
+        var available = (int)Math.Round(snapshot.AvailablePercent);
+        _available.Text = $"{available}% disponible";
         _details.Text = $"{snapshot.UsedPercent:0.#}% usado";
         _reset.Text = snapshot.ResetsAt is { } reset
             ? FormatTimeUntilReset(reset)
             : $"Actualizado {snapshot.ObservedAt.ToLocalTime():t}";
         _progress.Value = snapshot.AvailablePercent;
+        _progress.Foreground = new SolidColorBrush(available switch
+        {
+            >= 50 => Color.FromRgb(32, 180, 110),
+            >= 20 => Color.FromRgb(240, 170, 35),
+            _ => Color.FromRgb(220, 65, 70)
+        });
     }
 
     private static string FormatTimeUntilReset(DateTimeOffset reset)
@@ -110,7 +118,7 @@ public sealed class UsageFlyoutWindow : Window
 
         _available.FontSize = 18; _available.FontWeight = FontWeights.SemiBold; _available.Foreground = Brushes.White; _available.Margin = new Thickness(0, 9, 0, 6);
         Grid.SetRow(_available, 1); root.Children.Add(_available);
-        _progress.Height = 6; _progress.Minimum = 0; _progress.Maximum = 100; _progress.Foreground = new SolidColorBrush(Color.FromRgb(47, 190, 122)); _progress.Background = new SolidColorBrush(Color.FromRgb(65, 69, 78));
+        _progress.Height = 6; _progress.Minimum = 0; _progress.Maximum = 100; _progress.Foreground = new SolidColorBrush(Color.FromRgb(32, 180, 110)); _progress.Background = new SolidColorBrush(Color.FromRgb(65, 69, 78));
         Grid.SetRow(_progress, 2); root.Children.Add(_progress);
         var footer = new Grid { Margin = new Thickness(0, 8, 0, 0) };
         footer.ColumnDefinitions.Add(new ColumnDefinition()); footer.ColumnDefinitions.Add(new ColumnDefinition());

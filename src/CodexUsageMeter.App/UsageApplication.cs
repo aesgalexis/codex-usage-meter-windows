@@ -445,7 +445,10 @@ internal static class TrayIconFactory
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         graphics.Clear(Color.Transparent);
 
-        var color = availablePercent switch
+        var roundedAvailable = availablePercent is { } available
+            ? (int)Math.Round(available)
+            : (int?)null;
+        var color = roundedAvailable switch
         {
             null => Color.FromArgb(120, 130, 140),
             >= 50 => Color.FromArgb(32, 180, 110),

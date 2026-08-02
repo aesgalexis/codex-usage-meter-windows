@@ -15,6 +15,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Larger borderless pin that rotates to indicate whether the widget is fixed or released.
 - Reset countdown expressed in remaining days instead of an absolute date in the widget.
 - First-time pinning preserves the flyout position beside the notification area.
+- Tray icon and widget bar now share colors and rounded percentage thresholds.
 
 ## [0.2.2] - 2026-08-02
 
