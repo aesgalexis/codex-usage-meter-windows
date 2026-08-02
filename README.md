@@ -27,6 +27,14 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
 
+### Widget modes
+
+The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs can be shown temporarily or pinned and dragged anywhere on the desktop.
+
+| Normal | Compact |
+| --- | --- |
+| ![Normal Codex usage widget](docs/assets/widget-normal.png) | ![Compact Codex usage widget](docs/assets/widget-compact.png) |
+
 ## Installation
 
 ### Portable release
