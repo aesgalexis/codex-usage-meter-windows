@@ -19,10 +19,13 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
+    private readonly DispatcherTimer _flyoutCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _startupItem = new("Iniciar con Windows") { CheckOnClick = true };
+    private readonly Forms.ToolStripMenuItem _widgetItem = new("Mostrar widget fijo") { CheckOnClick = true };
+    private UsageFlyoutWindow? _flyout;
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
     private AppSettings _settings = new();
@@ -39,7 +42,17 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.MouseClick += OnTrayMouseClick;
+        _notifyIcon.HoverOpened += (_, _) => ShowFlyout(false, false);
+        _notifyIcon.HoverClosed += (_, _) => ScheduleFlyoutClose();
         _notifyIcon.Visible = true;
+
+        _flyoutCloseTimer.Tick += (_, _) =>
+        {
+            _flyoutCloseTimer.Stop();
+            if (_flyout is { IsPinned: false, IsMouseOver: false }) _flyout.Hide();
+        };
+        _widgetItem.Checked = _settings.WidgetPinned;
+        _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
 
         _startupItem.Checked = IsStartupEnabled();
         _startupItem.CheckedChanged += (_, _) => SetStartupEnabled(_startupItem.Checked);
@@ -53,6 +66,7 @@ public sealed class UsageApplication : System.Windows.Application
         EnsureSessionWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
+        if (_settings.WidgetPinned) Dispatcher.BeginInvoke(() => ShowFlyout(true));
     }
 
     private Forms.ContextMenuStrip BuildMenu()
@@ -79,6 +93,7 @@ public sealed class UsageApplication : System.Windows.Application
             openSessions,
             keepVisible,
             notifications,
+            _widgetItem,
             _startupItem,
             new Forms.ToolStripSeparator(),
             exit
@@ -157,6 +172,7 @@ public sealed class UsageApplication : System.Windows.Application
                     : "Reinicio: sin datos";
                 _notifyIcon.Text = TruncateTooltip($"Codex: {available}% disponible");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
+                _flyout?.UpdateUsage(snapshot);
                 ShowUsageNotification(notification, snapshot);
             }
             else
@@ -166,6 +182,7 @@ public sealed class UsageApplication : System.Windows.Application
                 _resetItem.Text = "Abre Codex y ejecuta al menos una tarea";
                 _notifyIcon.Text = TruncateTooltip("Codex Usage Meter: sin datos");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
+                _flyout?.UpdateUsage(null, result.Error);
             }
         }
         finally
@@ -258,21 +275,85 @@ public sealed class UsageApplication : System.Windows.Application
             return;
         }
 
-        if (_latest is { } snapshot)
+        if (_flyout?.IsVisible == true && !_flyout.IsPinned) _flyout.Hide();
+        else ShowFlyout(false, true);
+    }
+
+    private void ShowFlyout(bool pinned, bool activate = false)
+    {
+        _flyoutCloseTimer.Stop();
+        EnsureFlyout();
+        _flyout!.SetPinned(pinned || _settings.WidgetPinned);
+        _flyout.UpdateUsage(_latest);
+
+        if (_flyout.IsPinned && _settings.WidgetLeft is { } left && _settings.WidgetTop is { } top)
         {
-            var reset = snapshot.ResetsAt is { } resetsAt
-                ? $"\nReinicio: {resetsAt.ToLocalTime():g}"
-                : string.Empty;
-            _notifyIcon.BalloonTipTitle = "Uso de Codex";
-            _notifyIcon.BalloonTipText = $"{snapshot.AvailablePercent:0}% disponible ({snapshot.UsedPercent:0.#}% usado){reset}";
+            _flyout.Left = left;
+            _flyout.Top = top;
         }
         else
         {
-            _notifyIcon.BalloonTipTitle = "Uso de Codex no disponible";
-            _notifyIcon.BalloonTipText = "Ejecuta una tarea en Codex y vuelve a actualizar.";
+            PositionFlyoutAtTray();
         }
 
-        _notifyIcon.ShowBalloonTip(4000);
+        _flyout.Show();
+        if (activate) _flyout.Activate();
+    }
+
+    private void EnsureFlyout()
+    {
+        if (_flyout is not null) return;
+        _flyout = new UsageFlyoutWindow();
+        _flyout.MouseEnter += (_, _) => _flyoutCloseTimer.Stop();
+        _flyout.MouseLeave += (_, _) => ScheduleFlyoutClose();
+        _flyout.PinChanged += (_, pinned) =>
+        {
+            _settings.WidgetPinned = pinned;
+            _widgetItem.Checked = pinned;
+            SaveWidgetPosition();
+            _settingsStore.Save(_settings);
+        };
+        _flyout.PositionChanged += (_, _) => SaveWidgetPosition();
+    }
+
+    private void SetWidgetPinned(bool pinned)
+    {
+        _settings.WidgetPinned = pinned;
+        _settingsStore.Save(_settings);
+        if (pinned) ShowFlyout(true);
+        else if (_flyout is not null) { _flyout.SetPinned(false); _flyout.Hide(); }
+    }
+
+    private void ScheduleFlyoutClose()
+    {
+        if (_flyout?.IsPinned != false) return;
+        _flyoutCloseTimer.Stop();
+        _flyoutCloseTimer.Start();
+    }
+
+    private void PositionFlyoutAtTray()
+    {
+        if (_flyout is null) return;
+        var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
+            ? bounds
+            : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
+        var screen = Forms.Screen.FromRectangle(iconBounds);
+        var source = PresentationSource.FromVisual(_flyout);
+        var scaleX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1d;
+        var scaleY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1d;
+        var work = screen.WorkingArea;
+        var left = (iconBounds.Left + iconBounds.Width / 2d) * scaleX - _flyout.Width / 2d;
+        var top = iconBounds.Top * scaleY - _flyout.Height - 8;
+        _flyout.Left = Math.Clamp(left, work.Left * scaleX + 8, work.Right * scaleX - _flyout.Width - 8);
+        _flyout.Top = Math.Clamp(top, work.Top * scaleY + 8, work.Bottom * scaleY - _flyout.Height - 8);
+    }
+
+    private void SaveWidgetPosition()
+    {
+        if (_flyout is not { IsPinned: true }) return;
+        _settings.WidgetLeft = _flyout.Left;
+        _settings.WidgetTop = _flyout.Top;
+        _settingsStore.Save(_settings);
     }
 
     private Icon ReplaceIcon(Icon next)
@@ -343,7 +424,9 @@ public sealed class UsageApplication : System.Windows.Application
     {
         _refreshTimer.Stop();
         _fileChangeTimer.Stop();
+        _flyoutCloseTimer.Stop();
         _sessionWatcher?.Dispose();
+        _flyout?.Close();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _currentIcon?.Dispose();

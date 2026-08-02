@@ -14,6 +14,8 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 ## Features
 
 - Shows the available and used Codex percentages in the Windows notification area.
+- Shows a compact usage card when you hover over or left-click the tray icon.
+- Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
 - Displays the limit reset date and time in your local timezone.
 - Uses a green, amber, or red indicator according to the remaining usage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
@@ -46,8 +48,9 @@ winget upgrade --id aesgalexis.CodexUsageMeter --exact
 
 The app has no main window. After starting it, look for the circular indicator next to the Windows clock; it may initially appear under the hidden-icons arrow.
 
-- **Left-click:** show the current usage summary.
-- **Right-click:** refresh, open the Codex sessions folder, enable startup with Windows, or exit.
+- **Hover or left-click:** show the compact usage card.
+- **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
+- **Right-click:** pin or hide the widget, refresh, open the Codex sessions folder, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting where you can promote Codex Usage Meter out of the hidden-icons menu.
 - **Notifications:** enables or disables percentage changes, individual warning thresholds, and reset notices.
 
@@ -129,7 +132,7 @@ tests/
 
 ## Roadmap
 
-- Desktop widget anchored to any screen corner.
+- Optional corner snapping and widget appearance controls.
 - Native Windows toast notifications and richer scheduling controls.
 - Installer and automatic updates.
 - ARM64 builds.

@@ -20,6 +20,8 @@ public sealed class StableNotifyIcon : IDisposable
     }
 
     public event Forms.MouseEventHandler? MouseClick;
+    public event EventHandler? HoverOpened;
+    public event EventHandler? HoverClosed;
 
     public Forms.ContextMenuStrip? ContextMenuStrip { get; set; }
 
@@ -84,6 +86,18 @@ public sealed class StableNotifyIcon : IDisposable
         Shell_NotifyIcon(NotifyIconMessage.Modify, ref data);
     }
 
+    public bool TryGetBounds(out Rectangle bounds)
+    {
+        var identifier = new NotifyIconIdentifier
+        {
+            Size = (uint)Marshal.SizeOf<NotifyIconIdentifier>(),
+            WindowHandle = _window.Handle,
+            Id = 1,
+            GuidItem = TrayIconGuid
+        };
+        return Shell_NotifyIconGetRect(ref identifier, out bounds) == 0;
+    }
+
     private void AddToShell()
     {
         if (!_visible || _icon is null || _disposed)
@@ -144,6 +158,12 @@ public sealed class StableNotifyIcon : IDisposable
         var position = Forms.Cursor.Position;
         switch (message)
         {
+            case 0x0406: // NIN_POPUPOPEN
+                HoverOpened?.Invoke(this, EventArgs.Empty);
+                break;
+            case 0x0407: // NIN_POPUPCLOSE
+                HoverClosed?.Invoke(this, EventArgs.Empty);
+                break;
             case 0x0202: // WM_LBUTTONUP
                 MouseClick?.Invoke(this, new Forms.MouseEventArgs(Forms.MouseButtons.Left, 1, position.X, position.Y, 0));
                 break;
@@ -227,6 +247,15 @@ public sealed class StableNotifyIcon : IDisposable
         public IntPtr BalloonIconHandle;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NotifyIconIdentifier
+    {
+        public uint Size;
+        public IntPtr WindowHandle;
+        public uint Id;
+        public Guid GuidItem;
+    }
+
     [Flags]
     private enum NotifyIconFlags : uint
     {
@@ -248,6 +277,9 @@ public sealed class StableNotifyIcon : IDisposable
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool Shell_NotifyIcon(NotifyIconMessage message, ref NotifyIconData data);
+
+    [DllImport("shell32.dll")]
+    private static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out Rectangle iconLocation);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern uint RegisterWindowMessage(string message);

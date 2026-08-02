@@ -9,6 +9,9 @@ public sealed class AppSettings
     public bool NotifyAt75Percent { get; set; } = true;
     public bool NotifyAt90Percent { get; set; } = true;
     public bool NotifyOnReset { get; set; } = true;
+    public bool WidgetPinned { get; set; }
+    public double? WidgetLeft { get; set; }
+    public double? WidgetTop { get; set; }
 
     public NotificationOptions ToNotificationOptions() => new(
         NotifyOnPercentChange,
