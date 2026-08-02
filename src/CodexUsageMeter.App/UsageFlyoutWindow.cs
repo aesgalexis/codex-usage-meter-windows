@@ -20,7 +20,13 @@ public sealed class UsageFlyoutWindow : Window
     private readonly TextBlock _credits = new();
     private readonly ProgressBar _progress = new();
     private readonly Button _pin = new();
+    private readonly Button _compactPin = new();
+    private readonly TextBlock _compactPercent = new();
+    private readonly TextBlock _compactDots = new();
+    private readonly Border _compactFill = new();
     private readonly Border _card;
+    private readonly Border _compactCard;
+    private double _availablePercent;
 
     public UsageFlyoutWindow()
     {
@@ -33,12 +39,14 @@ public sealed class UsageFlyoutWindow : Window
         ResizeMode = ResizeMode.NoResize;
         Topmost = true;
         _card = BuildCard();
+        _compactCard = BuildCompactCard();
         Content = _card;
         Deactivated += (_, _) => { if (!IsPinned) Hide(); };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsPinned) Hide(); };
     }
 
     public bool IsPinned { get; private set; }
+    public bool IsCompact { get; private set; }
     public event EventHandler<bool>? PinChanged;
     public event EventHandler? PositionChanged;
 
@@ -47,6 +55,17 @@ public sealed class UsageFlyoutWindow : Window
         IsPinned = pinned;
         _pin.ToolTip = pinned ? "Soltar widget" : "Fijar widget";
         _pin.LayoutTransform = new RotateTransform(pinned ? 45 : 0);
+        _compactPin.ToolTip = pinned ? "Soltar widget" : "Fijar widget";
+        _compactPin.LayoutTransform = new RotateTransform(pinned ? 45 : 0);
+    }
+
+    public void SetCompact(bool compact)
+    {
+        IsCompact = compact;
+        Width = compact ? 260 : 310;
+        Height = compact ? 40 : 154;
+        Content = compact ? _compactCard : _card;
+        if (compact) Dispatcher.BeginInvoke(UpdateCompactFill);
     }
 
     public void UpdateUsage(UsageSnapshot? snapshot, string? error = null)
@@ -59,6 +78,12 @@ public sealed class UsageFlyoutWindow : Window
             _credits.Text = "Resets disponibles: sin datos";
             _progress.Value = 0;
             _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
+            _availablePercent = 0;
+            _compactPercent.Text = "Sin datos";
+            _compactDots.Text = string.Empty;
+            _compactDots.ToolTip = null;
+            _compactFill.Background = new SolidColorBrush(Color.FromRgb(120, 130, 140));
+            UpdateCompactFill();
             return;
         }
 
@@ -78,6 +103,18 @@ public sealed class UsageFlyoutWindow : Window
             >= 20 => Color.FromRgb(240, 170, 35),
             _ => Color.FromRgb(220, 65, 70)
         });
+        _availablePercent = snapshot.AvailablePercent;
+        _compactPercent.Text = $"{available}%";
+        var resets = snapshot.CreditBalance is { } credits ? Math.Max(0, (int)Math.Floor(credits)) : 0;
+        _compactDots.Text = resets switch
+        {
+            <= 0 => string.Empty,
+            <= 3 => string.Join(" ", Enumerable.Repeat("●", resets)),
+            _ => $"● ● ● +{resets - 3}"
+        };
+        _compactDots.ToolTip = resets == 1 ? "1 reset disponible" : $"{resets} resets disponibles";
+        _compactFill.Background = _progress.Foreground;
+        UpdateCompactFill();
     }
 
     private static string FormatTimeUntilReset(DateTimeOffset reset)
@@ -102,16 +139,7 @@ public sealed class UsageFlyoutWindow : Window
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-        _pin.Content = CreatePinIcon();
-        _pin.ToolTip = "Fijar widget";
-        _pin.Width = 34;
-        _pin.Height = 30;
-        _pin.Padding = new Thickness(0);
-        _pin.Background = Brushes.Transparent;
-        _pin.BorderBrush = Brushes.Transparent;
-        StyleButton(_pin);
-        _pin.Template = CreateIconButtonTemplate();
-        _pin.Click += (_, _) => { SetPinned(!IsPinned); PinChanged?.Invoke(this, IsPinned); };
+        ConfigurePinButton(_pin, 34, 30, 20);
         header.Children.Add(title);
         Grid.SetColumn(_pin, 1); header.Children.Add(_pin);
         root.Children.Add(header);
@@ -141,7 +169,72 @@ public sealed class UsageFlyoutWindow : Window
         return card;
     }
 
-    private static Viewbox CreatePinIcon()
+    private Border BuildCompactCard()
+    {
+        _compactFill.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        _compactFill.CornerRadius = new CornerRadius(19);
+        _compactFill.IsHitTestVisible = false;
+
+        var content = new Grid { Margin = new Thickness(14, 0, 7, 0) };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.ColumnDefinitions.Add(new ColumnDefinition());
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var title = new TextBlock { Text = "Codex", Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        _compactPercent.Foreground = Brushes.White; _compactPercent.FontSize = 13; _compactPercent.FontWeight = FontWeights.SemiBold; _compactPercent.VerticalAlignment = VerticalAlignment.Center; _compactPercent.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+        _compactDots.Foreground = Brushes.White; _compactDots.FontSize = 9; _compactDots.VerticalAlignment = VerticalAlignment.Center; _compactDots.Margin = new Thickness(6, 0, 5, 0);
+        ConfigurePinButton(_compactPin, 28, 28, 17);
+        content.Children.Add(title);
+        Grid.SetColumn(_compactPercent, 1); content.Children.Add(_compactPercent);
+        Grid.SetColumn(_compactDots, 2); content.Children.Add(_compactDots);
+        Grid.SetColumn(_compactPin, 3); content.Children.Add(_compactPin);
+
+        var layers = new Grid();
+        layers.Children.Add(_compactFill);
+        layers.Children.Add(content);
+        var card = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(47, 50, 58)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(76, 80, 90)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(20),
+            ClipToBounds = true,
+            Child = layers
+        };
+        card.SizeChanged += (_, _) => UpdateCompactFill();
+        AttachDrag(card);
+        return card;
+    }
+
+    private void UpdateCompactFill()
+    {
+        if (_compactCard is null) return;
+        _compactFill.Width = Math.Max(0, _compactCard.ActualWidth * Math.Clamp(_availablePercent, 0, 100) / 100d);
+    }
+
+    private void ConfigurePinButton(Button button, double width, double height, double iconSize)
+    {
+        button.Content = CreatePinIcon(iconSize);
+        button.ToolTip = "Fijar widget";
+        button.Width = width;
+        button.Height = height;
+        button.Padding = new Thickness(0);
+        StyleButton(button);
+        button.Template = CreateIconButtonTemplate();
+        button.Click += (_, _) => { SetPinned(!IsPinned); PinChanged?.Invoke(this, IsPinned); };
+    }
+
+    private void AttachDrag(Border card)
+    {
+        card.MouseLeftButtonDown += (_, e) =>
+        {
+            if (!IsPinned || e.ButtonState != MouseButtonState.Pressed || IsInsideButton(e.OriginalSource as DependencyObject)) return;
+            try { DragMove(); PositionChanged?.Invoke(this, EventArgs.Empty); }
+            catch (InvalidOperationException) { }
+        };
+    }
+
+    private static Viewbox CreatePinIcon(double size)
     {
         var pin = new ShapePath
         {
@@ -149,7 +242,7 @@ public sealed class UsageFlyoutWindow : Window
             Fill = new SolidColorBrush(Color.FromRgb(205, 208, 214)),
             Stretch = Stretch.Uniform
         };
-        return new Viewbox { Width = 20, Height = 20, Child = pin };
+        return new Viewbox { Width = size, Height = size, Child = pin };
     }
 
     private static ControlTemplate CreateIconButtonTemplate()

@@ -19,6 +19,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Complete vector pin shown downward when released and rotated 45 degrees when fixed.
 - Clear usage-reset countdown label and locally reported credit balance.
 - Borderless pin hover state, a more compact widget header, and clearer available-resets wording.
+- Persistent compact widget mode with an integrated usage bar, reset dots and pin control.
 
 ## [0.2.2] - 2026-08-02
 

@@ -25,6 +25,8 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _startupItem = new("Iniciar con Windows") { CheckOnClick = true };
     private readonly Forms.ToolStripMenuItem _widgetItem = new("Mostrar widget fijo") { CheckOnClick = true };
+    private readonly Forms.ToolStripMenuItem _normalWidgetItem = new("Normal") { CheckOnClick = true };
+    private readonly Forms.ToolStripMenuItem _compactWidgetItem = new("Compacto") { CheckOnClick = true };
     private UsageFlyoutWindow? _flyout;
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
@@ -80,6 +82,7 @@ public sealed class UsageApplication : System.Windows.Application
         var keepVisible = new Forms.ToolStripMenuItem("Mostrar siempre en la bandeja…");
         keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
         var notifications = BuildNotificationsMenu();
+        var widgetSize = BuildWidgetSizeMenu();
         var exit = new Forms.ToolStripMenuItem("Salir");
         exit.Click += (_, _) => Shutdown();
 
@@ -94,10 +97,22 @@ public sealed class UsageApplication : System.Windows.Application
             keepVisible,
             notifications,
             _widgetItem,
+            widgetSize,
             _startupItem,
             new Forms.ToolStripSeparator(),
             exit
         ]);
+        return menu;
+    }
+
+    private Forms.ToolStripMenuItem BuildWidgetSizeMenu()
+    {
+        var menu = new Forms.ToolStripMenuItem("Tamaño del widget");
+        _normalWidgetItem.Checked = !_settings.WidgetCompact;
+        _compactWidgetItem.Checked = _settings.WidgetCompact;
+        _normalWidgetItem.Click += (_, _) => SetWidgetCompact(false);
+        _compactWidgetItem.Click += (_, _) => SetWidgetCompact(true);
+        menu.DropDownItems.AddRange([_normalWidgetItem, _compactWidgetItem]);
         return menu;
     }
 
@@ -284,6 +299,7 @@ public sealed class UsageApplication : System.Windows.Application
         _flyoutCloseTimer.Stop();
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
+        _flyout.SetCompact(_flyout.IsPinned && _settings.WidgetCompact);
         _flyout.UpdateUsage(_latest);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
@@ -312,10 +328,20 @@ public sealed class UsageApplication : System.Windows.Application
         {
             _settings.WidgetPinned = pinned;
             _widgetItem.Checked = pinned;
+            _flyout.SetCompact(pinned && _settings.WidgetCompact);
             SaveWidgetPosition();
             _settingsStore.Save(_settings);
         };
         _flyout.PositionChanged += (_, _) => SaveWidgetPosition();
+    }
+
+    private void SetWidgetCompact(bool compact)
+    {
+        _settings.WidgetCompact = compact;
+        _normalWidgetItem.Checked = !compact;
+        _compactWidgetItem.Checked = compact;
+        _settingsStore.Save(_settings);
+        if (_flyout is { IsPinned: true }) _flyout.SetCompact(compact);
     }
 
     private void SetWidgetPinned(bool pinned)
