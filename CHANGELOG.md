@@ -6,6 +6,10 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- The tray-visibility command now opens Windows taskbar settings directly without an intermediate message.
+
 ## [0.3.0] - 2026-08-02
 
 ### Added

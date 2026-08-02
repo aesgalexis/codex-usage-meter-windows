@@ -446,12 +446,6 @@ public sealed class UsageApplication : System.Windows.Application
 
     private static void OpenTrayVisibilitySettings()
     {
-        Forms.MessageBox.Show(
-            "Windows controla qué iconos permanecen visibles. En la configuración de la barra de tareas, busca los otros iconos de la bandeja y activa Codex Usage Meter.",
-            "Mostrar siempre Codex Usage Meter",
-            Forms.MessageBoxButtons.OK,
-            Forms.MessageBoxIcon.Information);
-
         Process.Start(new ProcessStartInfo("ms-settings:taskbar") { UseShellExecute = true });
     }
 
