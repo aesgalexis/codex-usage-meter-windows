@@ -151,13 +151,19 @@ public sealed class UsageFlyoutWindow : Window
         {
             { } value when value.Contains("sol") => "☀",
             { } value when value.Contains("luna") => "☾",
-            { } value when value.Contains("terra") => "♁",
+            // The astronomical Earth glyph is easily mistaken for the Sun at this size.
+            // Segoe MDL2 Assets provides a clear, monochrome globe outline instead.
+            { } value when value.Contains("terra") => "\uE774",
             null or "" => string.Empty,
             _ => "◆"
         };
+        var fontFamily = model?.Contains("terra", StringComparison.OrdinalIgnoreCase) == true
+            ? new FontFamily("Segoe MDL2 Assets")
+            : new FontFamily("Segoe UI Symbol");
         foreach (var icon in new[] { _modelIcon, _compactModelIcon })
         {
             icon.Text = symbol;
+            icon.FontFamily = fontFamily;
             icon.ToolTip = model;
             icon.Visibility = string.IsNullOrEmpty(symbol) ? Visibility.Collapsed : Visibility.Visible;
         }
