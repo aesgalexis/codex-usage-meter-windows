@@ -286,6 +286,7 @@ public sealed class UsageApplication : System.Windows.Application
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.UpdateUsage(_latest);
 
+        var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
         if (_flyout.IsPinned && _settings.WidgetLeft is { } left && _settings.WidgetTop is { } top)
         {
             _flyout.Left = left;
@@ -297,6 +298,7 @@ public sealed class UsageApplication : System.Windows.Application
         }
 
         _flyout.Show();
+        if (_flyout.IsPinned && !hasSavedPosition) SaveWidgetPosition();
         if (activate) _flyout.Activate();
     }
 

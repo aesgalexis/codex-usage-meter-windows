@@ -16,7 +16,7 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 - Shows the available and used Codex percentages in the Windows notification area.
 - Shows a compact usage card when you hover over or left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
-- Displays the limit reset date and time in your local timezone.
+- Displays how many days remain until the usage limit resets.
 - Uses a green, amber, or red indicator according to the remaining usage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
 - Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.

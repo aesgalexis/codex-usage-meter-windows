@@ -66,9 +66,19 @@ public sealed class UsageFlyoutWindow : Window
         _available.Text = $"{snapshot.AvailablePercent:0}% disponible";
         _details.Text = $"{snapshot.UsedPercent:0.#}% usado";
         _reset.Text = snapshot.ResetsAt is { } reset
-            ? $"Se reinicia {reset.ToLocalTime():g}"
+            ? FormatTimeUntilReset(reset)
             : $"Actualizado {snapshot.ObservedAt.ToLocalTime():t}";
         _progress.Value = snapshot.AvailablePercent;
+    }
+
+    private static string FormatTimeUntilReset(DateTimeOffset reset)
+    {
+        var remaining = reset - DateTimeOffset.Now;
+        if (remaining <= TimeSpan.Zero) return "Reinicio pendiente";
+        if (remaining < TimeSpan.FromDays(1)) return "Falta menos de 1 día";
+
+        var days = (int)Math.Ceiling(remaining.TotalDays);
+        return days == 1 ? "Falta 1 día" : $"Faltan {days} días";
     }
 
     private Border BuildCard()
