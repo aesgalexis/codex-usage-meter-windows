@@ -16,6 +16,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Reset countdown expressed in remaining days instead of an absolute date in the widget.
 - First-time pinning preserves the flyout position beside the notification area.
 - Tray icon and widget bar now share colors and rounded percentage thresholds.
+- Complete vector pin shown downward when released and rotated 45 degrees when fixed.
+- Clear usage-reset countdown label and locally reported credit balance.
 
 ## [0.2.2] - 2026-08-02
 
