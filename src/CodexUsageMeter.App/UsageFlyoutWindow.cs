@@ -77,7 +77,7 @@ public sealed class UsageFlyoutWindow : Window
     {
         if (!IsCompact) return;
         var now = DateTimeOffset.Now;
-        if (!force && now - _lastShineAt < TimeSpan.FromSeconds(15)) return;
+        if (!force && now - _lastShineAt < TimeSpan.FromSeconds(3)) return;
         _lastShineAt = now;
 
         _activityShine.Visibility = Visibility.Visible;
