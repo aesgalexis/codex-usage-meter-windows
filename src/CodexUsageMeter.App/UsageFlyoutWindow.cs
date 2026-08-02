@@ -30,7 +30,6 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Border _card;
     private readonly Border _compactCard;
     private double _availablePercent;
-    private bool _activityActive;
 
     public UsageFlyoutWindow()
     {
@@ -69,14 +68,23 @@ public sealed class UsageFlyoutWindow : Window
         Width = compact ? 260 : 310;
         Height = compact ? 40 : 154;
         Content = compact ? _compactCard : _card;
-        if (compact) Dispatcher.BeginInvoke(() => { UpdateCompactFill(); UpdateActivityAnimation(); });
-        else UpdateActivityAnimation();
+        if (compact) Dispatcher.BeginInvoke(UpdateCompactFill);
     }
 
-    public void SetActivity(bool active)
+    public void PlayShine()
     {
-        _activityActive = active;
-        UpdateActivityAnimation();
+        if (!IsCompact) return;
+
+        _activityShine.Visibility = Visibility.Visible;
+        var animation = new DoubleAnimation
+        {
+            From = -60,
+            To = Width + 60,
+            Duration = TimeSpan.FromSeconds(1.1),
+            FillBehavior = FillBehavior.Stop
+        };
+        animation.Completed += (_, _) => _activityShine.Visibility = Visibility.Collapsed;
+        _shineTranslation.BeginAnimation(TranslateTransform.XProperty, animation);
     }
 
     public void UpdateUsage(UsageSnapshot? snapshot, string? error = null, bool stale = false)
@@ -251,27 +259,6 @@ public sealed class UsageFlyoutWindow : Window
         card.SizeChanged += (_, _) => UpdateCompactFill();
         AttachDrag(card);
         return card;
-    }
-
-    private void UpdateActivityAnimation()
-    {
-        var shouldAnimate = IsCompact && _activityActive;
-        if (!shouldAnimate)
-        {
-            _shineTranslation.BeginAnimation(TranslateTransform.XProperty, null);
-            _activityShine.Visibility = Visibility.Collapsed;
-            return;
-        }
-
-        _activityShine.Visibility = Visibility.Visible;
-        var animation = new DoubleAnimation
-        {
-            From = -60,
-            To = Width + 60,
-            Duration = TimeSpan.FromSeconds(1.35),
-            RepeatBehavior = RepeatBehavior.Forever
-        };
-        _shineTranslation.BeginAnimation(TranslateTransform.XProperty, animation);
     }
 
     private void UpdateCompactFill()

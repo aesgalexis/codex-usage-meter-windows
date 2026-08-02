@@ -22,7 +22,6 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
     private readonly DispatcherTimer _flyoutCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
-    private readonly DispatcherTimer _activityTimer = new() { Interval = TimeSpan.FromSeconds(4) };
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
@@ -38,7 +37,6 @@ public sealed class UsageApplication : System.Windows.Application
     private FileSystemWatcher? _sessionWatcher;
     private bool _isRefreshing;
     private bool _latestIsStale;
-    private bool _activityDetected;
     private UsageFailureKind _latestFailureKind;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -64,12 +62,6 @@ public sealed class UsageApplication : System.Windows.Application
         {
             _flyoutCloseTimer.Stop();
             if (_flyout is { IsPinned: false, IsMouseOver: false }) _flyout.Hide();
-        };
-        _activityTimer.Tick += (_, _) =>
-        {
-            _activityTimer.Stop();
-            _activityDetected = false;
-            _flyout?.SetActivity(false);
         };
         _refreshTimer.Tick += async (_, _) => await RefreshAsync();
         _fileChangeTimer.Tick += async (_, _) =>
@@ -231,6 +223,7 @@ public sealed class UsageApplication : System.Windows.Application
                 {
                     var notification = UsageNotificationEvaluator.Evaluate(previous, snapshot, _settings.ToNotificationOptions());
                     ShowUsageNotification(notification, snapshot);
+                    if (previous is null || snapshot.ObservedAt > previous.ObservedAt) _flyout?.PlayShine();
                 }
             }
             else
@@ -336,10 +329,6 @@ public sealed class UsageApplication : System.Windows.Application
     {
         Dispatcher.BeginInvoke(() =>
         {
-            _activityDetected = true;
-            _activityTimer.Stop();
-            _activityTimer.Start();
-            _flyout?.SetActivity(true);
             _fileChangeTimer.Stop();
             _fileChangeTimer.Start();
         });
@@ -391,7 +380,6 @@ public sealed class UsageApplication : System.Windows.Application
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetCompact(_settings.WidgetCompact);
-        _flyout.SetActivity(_activityDetected);
         _flyout.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
@@ -406,6 +394,7 @@ public sealed class UsageApplication : System.Windows.Application
         }
 
         _flyout.Show();
+        if (_flyout.IsCompact) _flyout.PlayShine();
         if (_flyout.IsPinned && !hasSavedPosition) SaveWidgetPosition();
         if (activate) _flyout.Activate();
     }
@@ -556,7 +545,6 @@ public sealed class UsageApplication : System.Windows.Application
         _refreshTimer.Stop();
         _fileChangeTimer.Stop();
         _flyoutCloseTimer.Stop();
-        _activityTimer.Stop();
         _sessionWatcher?.Dispose();
         _flyout?.Close();
         _notifyIcon.Visible = false;

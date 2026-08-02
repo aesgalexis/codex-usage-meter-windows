@@ -14,7 +14,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Keeps the last valid snapshot during temporary failures and marks its age and stale state in the interface.
 - Labels the reported balance as credits instead of assuming that it represents available resets.
 - Compact mode no longer converts credits into reset dots; dots stay hidden until Codex exposes a reliable reset count.
-- Optional compact-widget shine that runs while recent Codex session writes indicate activity.
+- Compact-widget shine now runs once when opened or updated, avoiding unreliable claims that Codex is actively working.
 - Removed the developer-oriented session-folder shortcut from the main tray menu and made compact activity animation automatic.
 
 ### Added
