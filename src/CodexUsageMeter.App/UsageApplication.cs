@@ -232,7 +232,9 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (_sessionWatcher is not null)
         {
-            return;
+            if (Directory.Exists(_sessionWatcher.Path)) return;
+            _sessionWatcher.Dispose();
+            _sessionWatcher = null;
         }
 
         var sessionsPath = Path.Combine(

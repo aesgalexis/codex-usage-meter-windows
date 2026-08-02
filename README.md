@@ -11,6 +11,8 @@ A small, privacy-friendly Windows tray application that shows your latest Codex 
 > [!IMPORTANT]
 > This is an early development version. The app reads rate-limit snapshots written by Codex to local session files. That file format is not a documented public API and may change in future Codex versions.
 
+Codex is not an installer dependency. If Codex is absent, the meter stays idle and reports that no usage data is available. It starts reading automatically after Codex creates a local session. If Codex is later removed, the meter returns safely to the same idle state. The Codex extension for Visual Studio Code is compatible because it writes the same local session data.
+
 ## Features
 
 - Shows the available and used Codex percentages in the Windows notification area.
@@ -98,7 +100,8 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 For a published build:
 
 - Windows 10 or Windows 11, x64.
-- Codex installed and at least one recent Codex task.
+- Codex or the Codex extension for Visual Studio Code, plus at least one recent task, is required only to display usage data.
+- The app can be installed and started without Codex; it will wait for local session data.
 
 For development:
 

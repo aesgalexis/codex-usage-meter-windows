@@ -6,6 +6,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-02
+
 ### Added
 
 - Compact usage card that opens when hovering over or left-clicking the tray icon.
@@ -21,6 +23,10 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Borderless pin hover state, a more compact widget header, and clearer available-resets wording.
 - Persistent compact widget mode with an integrated usage bar, reset dots and pin control.
 - Clear Disabled, Normal and Compact widget modes, with widgets disabled by default and the selected design used consistently on hover and when pinned.
+
+### Fixed
+
+- Graceful idle behavior when Codex is not installed or its local sessions are removed, with automatic recovery when they appear again.
 
 ## [0.2.2] - 2026-08-02
 

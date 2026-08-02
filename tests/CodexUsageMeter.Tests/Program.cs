@@ -17,6 +17,10 @@ Assert(snapshot.CreditBalance == 12.50m, "El saldo debe leerse con formato invar
 Assert(CodexRateLimitParser.Parse("{not-json") is null, "JSON inválido no debe lanzar una excepción.");
 Assert(CodexRateLimitParser.Parse("{\"payload\":{}}") is null, "Un evento ajeno debe ignorarse.");
 
+var missingProvider = new CodexSessionUsageProvider(Path.Combine(Path.GetTempPath(), $"codex-usage-meter-missing-{Guid.NewGuid():N}"));
+var missingResult = await missingProvider.GetLatestAsync();
+Assert(!missingResult.IsSuccess && missingResult.Error is not null, "La ausencia de Codex debe producir un estado en espera, no una excepción.");
+
 var testRoot = Path.Combine(Path.GetTempPath(), $"codex-usage-meter-tests-{Guid.NewGuid():N}");
 var sessionDirectory = Path.Combine(testRoot, "sessions", "2026", "08", "02");
 Directory.CreateDirectory(sessionDirectory);
