@@ -20,12 +20,13 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
 - Offers a compact pinned mode where the entire capsule is the available-usage bar with an integrated pin. Reset dots remain hidden until a reliable local reset-count source is available.
 - Plays a subtle shine across the compact bar when it opens and on immediate local session writes.
+- Optionally shows a three-pixel usage bar across the screen above the taskbar, independent from the selected widget, with a brighter shine while Codex is working.
 - Shows a monochrome sun, moon or Earth symbol for detected Sol, Luna or Terra models in both widget sizes.
 - Displays how many days remain until the usage limit resets.
 - Shows the locally reported credit balance beneath the reset countdown without assuming that credits represent resets.
 - Uses the same green, amber, or red status color in the tray icon and widget bar, based on the rounded available percentage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
-- Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets.
+- Offers persistent notifications for integer percentage changes, 50/75/90% usage thresholds, and limit resets. Percentage notifications are disabled by default on new installations.
 - Opens the Windows setting used to keep its icon permanently visible.
 - Uses a stable native notification-area identity so Windows can retain that visibility choice across upgrades.
 - Optionally starts with Windows.
@@ -35,6 +36,8 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 ### Widget modes
 
 The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs can be shown temporarily or pinned and dragged anywhere on the desktop.
+
+The separate usage-bar option adds a non-interactive three-pixel line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as availability falls, and can remain enabled while either widget design is used for tray hover.
 
 | Normal | Compact |
 | --- | --- |
@@ -73,6 +76,7 @@ The app has no main window. After starting it, look for the circular indicator n
 
 - **Default behavior:** no widget is shown; right-click opens the original tray menu and left-click shows the usage balloon.
 - **Widget:** choose Disabled, Normal or Compact. The chosen design is used for both hover and pinned display.
+- **Usage bar:** independently shows or hides the thin progress line above the taskbar.
 - **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
 - **Right-click:** pin or hide the widget, refresh, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting directly, where you can promote Codex Usage Meter out of the hidden-icons menu.

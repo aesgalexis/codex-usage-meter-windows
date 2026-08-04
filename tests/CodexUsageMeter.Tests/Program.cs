@@ -85,7 +85,25 @@ finally
 var observedAt = DateTimeOffset.Parse("2026-08-02T10:00:00Z");
 var first = new UsageSnapshot(49, observedAt.AddHours(1), 60, "plus", 0, observedAt);
 var crossed = first with { UsedPercent = 76, ObservedAt = observedAt.AddMinutes(1) };
-var thresholdNotice = UsageNotificationEvaluator.Evaluate(first, crossed, NotificationOptions.Default);
+var defaultNotifications = NotificationOptions.Default;
+Assert(!defaultNotifications.NotifyOnPercentChange &&
+       !defaultNotifications.NotifyAt50Percent &&
+       !defaultNotifications.NotifyAt75Percent &&
+       !defaultNotifications.NotifyAt90Percent,
+    "Las notificaciones de porcentaje deben estar desactivadas por defecto.");
+var newSettings = new AppSettings();
+Assert(!newSettings.NotifyOnPercentChange &&
+       !newSettings.NotifyAt50Percent &&
+       !newSettings.NotifyAt75Percent &&
+       !newSettings.NotifyAt90Percent,
+    "Una instalación nueva no debe activar notificaciones de porcentaje.");
+var thresholdOptions = NotificationOptions.Default with
+{
+    NotifyAt50Percent = true,
+    NotifyAt75Percent = true,
+    NotifyAt90Percent = true
+};
+var thresholdNotice = UsageNotificationEvaluator.Evaluate(first, crossed, thresholdOptions);
 Assert(thresholdNotice == new UsageNotification(UsageNotificationKind.ThresholdReached, 75), "Un salto debe avisar solo del umbral más alto cruzado.");
 Assert(UsageNotificationEvaluator.Evaluate(null, first, NotificationOptions.Default) is null, "El arranque no debe generar notificaciones.");
 

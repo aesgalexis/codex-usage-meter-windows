@@ -34,12 +34,14 @@ public sealed class UsageApplication : System.Windows.Application
     private Forms.ToolStripMenuItem _disabledWidgetItem = null!;
     private Forms.ToolStripMenuItem _normalWidgetItem = null!;
     private Forms.ToolStripMenuItem _compactWidgetItem = null!;
+    private Forms.ToolStripMenuItem _usageBarItem = null!;
     private UsageFlyoutWindow? _flyout;
+    private UsageFlyoutWindow? _usageBar;
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
     private AppSettings _settings = new();
     private FileSystemWatcher? _sessionWatcher;
-    private string? _pendingActivityPath;
+    private readonly HashSet<string> _pendingActivityPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, bool> _activeTaskFiles = new(StringComparer.OrdinalIgnoreCase);
     private bool _isRefreshing;
     private bool _latestIsStale;
@@ -78,14 +80,22 @@ public sealed class UsageApplication : System.Windows.Application
         _activityStateTimer.Tick += async (_, _) =>
         {
             _activityStateTimer.Stop();
-            var path = _pendingActivityPath;
-            if (path is not null) await UpdateActivityStateAsync(path);
+            await ProcessPendingActivityStatesAsync();
         };
-        _shineTimer.Tick += (_, _) => _flyout?.PlayShine(force: true);
+        _shineTimer.Tick += async (_, _) =>
+        {
+            await ReconcileActivityStatesAsync();
+            if (_shineTimer.IsEnabled)
+            {
+                _flyout?.PlayShine(force: true);
+                _usageBar?.PlayShine(force: true);
+            }
+        };
         EnsureSessionWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
         if (_settings.WidgetPinned) Dispatcher.BeginInvoke(() => ShowFlyout(true));
+        if (_settings.UsageBarEnabled) Dispatcher.BeginInvoke(ShowUsageBar);
     }
 
     private Forms.ContextMenuStrip BuildMenu()
@@ -98,6 +108,8 @@ public sealed class UsageApplication : System.Windows.Application
         keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
         var notifications = BuildNotificationsMenu();
         var widgetSize = BuildWidgetSizeMenu();
+        _usageBarItem = new Forms.ToolStripMenuItem(AppText.Get("UsageBar")) { CheckOnClick = true, Checked = _settings.UsageBarEnabled };
+        _usageBarItem.CheckedChanged += (_, _) => SetUsageBarEnabled(_usageBarItem.Checked);
         var language = BuildLanguageMenu();
         _widgetItem = new Forms.ToolStripMenuItem(AppText.Get("ShowPinned")) { CheckOnClick = true, Checked = _settings.WidgetPinned };
         _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
@@ -117,6 +129,7 @@ public sealed class UsageApplication : System.Windows.Application
             notifications,
             _widgetItem,
             widgetSize,
+            _usageBarItem,
             language,
             _startupItem,
             new Forms.ToolStripSeparator(),
@@ -134,9 +147,9 @@ public sealed class UsageApplication : System.Windows.Application
         _disabledWidgetItem.Checked = !_settings.WidgetEnabled;
         _normalWidgetItem.Checked = _settings.WidgetEnabled && !_settings.WidgetCompact;
         _compactWidgetItem.Checked = _settings.WidgetEnabled && _settings.WidgetCompact;
-        _normalWidgetItem.Click += (_, _) => SetWidgetMode(true, false);
-        _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, true);
-        _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, false);
+        _normalWidgetItem.Click += (_, _) => SetWidgetMode(true, compact: false);
+        _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, compact: true);
+        _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, compact: false);
         menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem]);
         return menu;
     }
@@ -162,6 +175,7 @@ public sealed class UsageApplication : System.Windows.Application
         previous?.Dispose();
         _flyout?.SetPinned(_flyout.IsPinned);
         _flyout?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
+        _usageBar?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         _ = RefreshAsync();
     }
 
@@ -246,6 +260,7 @@ public sealed class UsageApplication : System.Windows.Application
                 _notifyIcon.Text = TruncateTooltip($"Codex Usage Meter: {AppText.Get("NoData")}");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
                 _flyout?.UpdateUsage(null, failure);
+                _usageBar?.UpdateUsage(null, failure);
             }
         }
         finally
@@ -266,6 +281,7 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}{(stale ? $" · {AppText.Get("Stale")}" : string.Empty)}");
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
+        _usageBar?.UpdateUsage(snapshot, staleReason, stale);
     }
 
     private static string LocalizeFailure(UsageFailureKind kind) => kind switch
@@ -341,7 +357,7 @@ public sealed class UsageApplication : System.Windows.Application
     {
         Dispatcher.BeginInvoke(() =>
         {
-            _pendingActivityPath = e.FullPath;
+            _pendingActivityPaths.Add(e.FullPath);
             _activityStateTimer.Stop();
             _activityStateTimer.Start();
             _fileChangeTimer.Stop();
@@ -349,7 +365,36 @@ public sealed class UsageApplication : System.Windows.Application
         });
     }
 
-    private async Task UpdateActivityStateAsync(string path)
+    private async Task ProcessPendingActivityStatesAsync()
+    {
+        var paths = _pendingActivityPaths.ToArray();
+        _pendingActivityPaths.Clear();
+
+        foreach (var path in paths)
+        {
+            await UpdateActivityStateAsync(path, updateTimer: false);
+        }
+
+        UpdateShineTimerState();
+    }
+
+    private async Task ReconcileActivityStatesAsync()
+    {
+        foreach (var path in _activeTaskFiles.Keys.ToArray())
+        {
+            if (!File.Exists(path))
+            {
+                _activeTaskFiles.Remove(path);
+                continue;
+            }
+
+            await UpdateActivityStateAsync(path, updateTimer: false);
+        }
+
+        UpdateShineTimerState();
+    }
+
+    private async Task UpdateActivityStateAsync(string path, bool updateTimer = true)
     {
         var isActive = await ReadLatestTaskStateAsync(path);
         if (isActive is null) return;
@@ -357,9 +402,18 @@ public sealed class UsageApplication : System.Windows.Application
         if (isActive.Value) _activeTaskFiles[path] = true;
         else _activeTaskFiles.Remove(path);
 
+        if (updateTimer) UpdateShineTimerState();
+    }
+
+    private void UpdateShineTimerState()
+    {
         if (_activeTaskFiles.Values.Any(active => active))
         {
-            if (!_shineTimer.IsEnabled) _flyout?.PlayShine(force: true);
+            if (!_shineTimer.IsEnabled)
+            {
+                _flyout?.PlayShine(force: true);
+                _usageBar?.PlayShine(force: true);
+            }
             _shineTimer.Start();
         }
         else
@@ -459,7 +513,7 @@ public sealed class UsageApplication : System.Windows.Application
         _flyoutCloseTimer.Stop();
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
-        _flyout.SetCompact(_settings.WidgetCompact);
+        _flyout.SetMode(_settings.WidgetCompact, line: false);
         _flyout.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
 
         var hasSavedPosition = _settings.WidgetLeft is not null && _settings.WidgetTop is not null;
@@ -509,7 +563,10 @@ public sealed class UsageApplication : System.Windows.Application
             _flyout?.Hide();
         }
         _settingsStore.Save(_settings);
-        if (enabled && _flyout is { IsVisible: true }) _flyout.SetCompact(compact);
+        if (enabled && _flyout is { IsVisible: true })
+        {
+            _flyout.SetMode(compact, line: false);
+        }
     }
 
     private void SetWidgetPinned(bool pinned)
@@ -526,6 +583,25 @@ public sealed class UsageApplication : System.Windows.Application
         _settingsStore.Save(_settings);
         if (pinned) ShowFlyout(true);
         else if (_flyout is not null) { _flyout.SetPinned(false); _flyout.Hide(); }
+    }
+
+    private void SetUsageBarEnabled(bool enabled)
+    {
+        _settings.UsageBarEnabled = enabled;
+        _settingsStore.Save(_settings);
+        if (enabled) ShowUsageBar();
+        else _usageBar?.Hide();
+    }
+
+    private void ShowUsageBar()
+    {
+        if (!_settings.UsageBarEnabled) return;
+        _usageBar ??= new UsageFlyoutWindow();
+        _usageBar.SetPinned(true);
+        _usageBar.SetMode(compact: false, line: true);
+        _usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
+        PositionLineAboveTaskbar();
+        _usageBar.Show();
     }
 
     private void ScheduleFlyoutClose()
@@ -550,6 +626,22 @@ public sealed class UsageApplication : System.Windows.Application
         var top = iconBounds.Top * scaleY - _flyout.Height - 8;
         _flyout.Left = Math.Clamp(left, work.Left * scaleX + 8, work.Right * scaleX - _flyout.Width - 8);
         _flyout.Top = Math.Clamp(top, work.Top * scaleY + 8, work.Bottom * scaleY - _flyout.Height - 8);
+    }
+
+    private void PositionLineAboveTaskbar()
+    {
+        if (_usageBar is null) return;
+        var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
+            ? bounds
+            : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
+        var screen = Forms.Screen.FromRectangle(iconBounds);
+        var source = PresentationSource.FromVisual(_usageBar);
+        var scaleX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1d;
+        var scaleY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1d;
+        var work = screen.WorkingArea;
+        _usageBar.Width = work.Width * scaleX;
+        _usageBar.Left = work.Left * scaleX;
+        _usageBar.Top = work.Bottom * scaleY - _usageBar.Height;
     }
 
     private void SaveWidgetPosition()
@@ -629,6 +721,7 @@ public sealed class UsageApplication : System.Windows.Application
         _flyoutCloseTimer.Stop();
         _sessionWatcher?.Dispose();
         _flyout?.Close();
+        _usageBar?.Close();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _currentIcon?.Dispose();

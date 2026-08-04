@@ -6,13 +6,14 @@ public sealed class AppSettings
 {
     public string? Language { get; set; }
     public bool NotifyOnPercentChange { get; set; }
-    public bool NotifyAt50Percent { get; set; } = true;
-    public bool NotifyAt75Percent { get; set; } = true;
-    public bool NotifyAt90Percent { get; set; } = true;
+    public bool NotifyAt50Percent { get; set; }
+    public bool NotifyAt75Percent { get; set; }
+    public bool NotifyAt90Percent { get; set; }
     public bool NotifyOnReset { get; set; } = true;
     public bool WidgetPinned { get; set; }
     public bool WidgetEnabled { get; set; }
     public bool WidgetCompact { get; set; }
+    public bool UsageBarEnabled { get; set; }
     public double? WidgetLeft { get; set; }
     public double? WidgetTop { get; set; }
 

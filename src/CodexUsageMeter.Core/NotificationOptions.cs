@@ -9,8 +9,8 @@ public sealed record NotificationOptions(
 {
     public static NotificationOptions Default { get; } = new(
         NotifyOnPercentChange: false,
-        NotifyAt50Percent: true,
-        NotifyAt75Percent: true,
-        NotifyAt90Percent: true,
+        NotifyAt50Percent: false,
+        NotifyAt75Percent: false,
+        NotifyAt90Percent: false,
         NotifyOnReset: true);
 }

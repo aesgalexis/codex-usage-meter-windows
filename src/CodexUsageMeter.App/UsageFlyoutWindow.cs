@@ -30,9 +30,14 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Border _compactFill = new();
     private readonly Border _activityShine = new();
     private readonly TranslateTransform _shineTranslation = new();
+    private readonly Grid _lineProgressLayer = new();
+    private readonly Border _lineFill = new();
+    private readonly Border _lineActivityShine = new();
+    private readonly TranslateTransform _lineShineTranslation = new();
     private readonly RectangleGeometry _compactClip = new() { RadiusX = 20, RadiusY = 20 };
     private readonly Border _card;
     private readonly Border _compactCard;
+    private readonly Border _lineCard;
     private double _availablePercent;
     private DateTimeOffset _lastShineAt = DateTimeOffset.MinValue;
 
@@ -48,6 +53,7 @@ public sealed class UsageFlyoutWindow : Window
         Topmost = true;
         _card = BuildCard();
         _compactCard = BuildCompactCard();
+        _lineCard = BuildLineCard();
         Content = _card;
         Deactivated += (_, _) => { if (!IsPinned) Hide(); };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsPinned) Hide(); };
@@ -55,6 +61,7 @@ public sealed class UsageFlyoutWindow : Window
 
     public bool IsPinned { get; private set; }
     public bool IsCompact { get; private set; }
+    public bool IsLine { get; private set; }
     public event EventHandler<bool>? PinChanged;
     public event EventHandler? PositionChanged;
 
@@ -67,32 +74,39 @@ public sealed class UsageFlyoutWindow : Window
         _compactPin.LayoutTransform = new RotateTransform(pinned ? 45 : 0);
     }
 
-    public void SetCompact(bool compact)
+    public void SetMode(bool compact, bool line)
     {
-        IsCompact = compact;
-        Width = compact ? 260 : 310;
-        Height = compact ? 40 : 154;
-        Content = compact ? _compactCard : _card;
-        if (compact) Dispatcher.BeginInvoke(UpdateCompactFill);
+        IsLine = line;
+        IsCompact = compact && !line;
+        Width = IsLine || IsCompact ? 260 : 310;
+        Height = IsLine ? 3 : IsCompact ? 40 : 154;
+        Content = IsLine ? _lineCard : IsCompact ? _compactCard : _card;
+        IsHitTestVisible = !IsLine;
+        if (IsCompact) Dispatcher.BeginInvoke(UpdateCompactFill);
+        if (IsLine) Dispatcher.BeginInvoke(UpdateLineFill);
     }
 
     public void PlayShine(bool force = false)
     {
-        if (!IsCompact) return;
+        if (!IsCompact && !IsLine) return;
         var now = DateTimeOffset.Now;
         if (!force && now - _lastShineAt < TimeSpan.FromSeconds(3)) return;
         _lastShineAt = now;
 
-        _activityShine.Visibility = Visibility.Visible;
+        var shine = IsLine ? _lineActivityShine : _activityShine;
+        var translation = IsLine ? _lineShineTranslation : _shineTranslation;
+        var travelWidth = IsLine ? _lineProgressLayer.ActualWidth : Width;
+        if (travelWidth <= 0) return;
+        shine.Visibility = Visibility.Visible;
         var animation = new DoubleAnimation
         {
             From = -60,
-            To = Width + 60,
-            Duration = TimeSpan.FromSeconds(1.1),
+            To = travelWidth + 60,
+            Duration = TimeSpan.FromSeconds(IsLine ? 1.6 : 1.1),
             FillBehavior = FillBehavior.Stop
         };
-        animation.Completed += (_, _) => _activityShine.Visibility = Visibility.Collapsed;
-        _shineTranslation.BeginAnimation(TranslateTransform.XProperty, animation);
+        animation.Completed += (_, _) => shine.Visibility = Visibility.Collapsed;
+        translation.BeginAnimation(TranslateTransform.XProperty, animation);
     }
 
     public void UpdateUsage(UsageSnapshot? snapshot, string? error = null, bool stale = false)
@@ -111,7 +125,9 @@ public sealed class UsageFlyoutWindow : Window
             _compactDots.ToolTip = null;
             SetModelIcon(null);
             _compactFill.Background = new SolidColorBrush(Color.FromRgb(120, 130, 140));
+            _lineFill.Background = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             UpdateCompactFill();
+            UpdateLineFill();
             return;
         }
 
@@ -142,7 +158,9 @@ public sealed class UsageFlyoutWindow : Window
         _compactDots.ToolTip = null;
         SetModelIcon(snapshot.ActiveModel);
         _compactFill.Background = _progress.Foreground;
+        _lineFill.Background = _progress.Foreground;
         UpdateCompactFill();
+        UpdateLineFill();
     }
 
     private void SetModelIcon(string? model)
@@ -163,21 +181,27 @@ public sealed class UsageFlyoutWindow : Window
         {
             return new System.Windows.Shapes.Ellipse
             {
-                Width = 8,
-                Height = 8,
+                Width = 11,
+                Height = 11,
                 Fill = Brushes.White,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
         }
 
-        var symbol = normalized.Contains("sol") ? "☀" : normalized.Contains("luna") ? "☾" : "◆";
+        var symbol = normalized.Contains("sol") ? "☀" : normalized.Contains("luna") ? "☽" : "◆";
         return new TextBlock
         {
             Text = symbol,
             FontFamily = new FontFamily("Segoe UI Symbol"),
-            FontSize = 15,
+            FontSize = 14,
             Foreground = Brushes.White,
+            Width = 16,
+            Height = 16,
+            LineHeight = 16,
+            LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
     }
@@ -209,6 +233,17 @@ public sealed class UsageFlyoutWindow : Window
         return AppText.Get(days == 1 ? "ResetOneDay" : "ResetDays", days);
     }
 
+    private static void ConfigureModelIconHost(ContentControl icon)
+    {
+        icon.Width = 16;
+        icon.Height = 16;
+        icon.Margin = new Thickness(6, 0, 0, 0);
+        icon.Padding = new Thickness(0);
+        icon.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center;
+        icon.VerticalContentAlignment = VerticalAlignment.Center;
+        icon.VerticalAlignment = VerticalAlignment.Center;
+    }
+
     private Border BuildCard()
     {
         var root = new Grid { Margin = new Thickness(18, 10, 18, 14) };
@@ -221,7 +256,7 @@ public sealed class UsageFlyoutWindow : Window
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-        _modelIcon.Width = 16; _modelIcon.Height = 16; _modelIcon.Margin = new Thickness(7, 0, 0, 0); _modelIcon.VerticalAlignment = VerticalAlignment.Center;
+        ConfigureModelIconHost(_modelIcon);
         var titleGroup = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
         titleGroup.Children.Add(title); titleGroup.Children.Add(_modelIcon);
         ConfigurePinButton(_pin, 34, 30, 20);
@@ -267,7 +302,7 @@ public sealed class UsageFlyoutWindow : Window
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var title = new TextBlock { Text = "Codex", Foreground = Brushes.White, FontSize = 13, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-        _compactModelIcon.Width = 15; _compactModelIcon.Height = 15; _compactModelIcon.Margin = new Thickness(6, 0, 0, 0); _compactModelIcon.VerticalAlignment = VerticalAlignment.Center;
+        ConfigureModelIconHost(_compactModelIcon);
         _compactPercent.Foreground = Brushes.White; _compactPercent.FontSize = 13; _compactPercent.FontWeight = FontWeights.SemiBold; _compactPercent.VerticalAlignment = VerticalAlignment.Center; _compactPercent.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
         _compactDots.Foreground = Brushes.White; _compactDots.FontSize = 9; _compactDots.VerticalAlignment = VerticalAlignment.Center; _compactDots.Margin = new Thickness(6, 0, 5, 0);
         ConfigurePinButton(_compactPin, 28, 28, 17);
@@ -288,10 +323,13 @@ public sealed class UsageFlyoutWindow : Window
         {
             GradientStops = new GradientStopCollection
             {
-                new(Colors.Transparent, 0),
+                new(Color.FromArgb(0, 255, 255, 255), 0),
+                new(Color.FromArgb(24, 255, 255, 255), 0.3),
                 new(Color.FromArgb(105, 255, 255, 255), 0.5),
-                new(Colors.Transparent, 1)
+                new(Color.FromArgb(24, 255, 255, 255), 0.7),
+                new(Color.FromArgb(0, 255, 255, 255), 1)
             },
+            ColorInterpolationMode = ColorInterpolationMode.SRgbLinearInterpolation,
             StartPoint = new System.Windows.Point(0, 0),
             EndPoint = new System.Windows.Point(1, 0)
         };
@@ -318,6 +356,57 @@ public sealed class UsageFlyoutWindow : Window
         AttachDrag(card);
         return card;
     }
+
+    private Border BuildLineCard()
+    {
+        _lineFill.Background = new SolidColorBrush(Color.FromRgb(120, 130, 140));
+        _lineActivityShine.Width = 120;
+        _lineActivityShine.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        _lineActivityShine.IsHitTestVisible = false;
+        _lineActivityShine.Visibility = Visibility.Collapsed;
+        _lineActivityShine.Background = CreateLineShineBrush();
+        _lineActivityShine.RenderTransform = new TransformGroup
+        {
+            Children = new TransformCollection { new SkewTransform(-18, 0), _lineShineTranslation }
+        };
+        _lineProgressLayer.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        _lineProgressLayer.ClipToBounds = true;
+        _lineProgressLayer.Children.Add(_lineFill);
+        _lineProgressLayer.Children.Add(_lineActivityShine);
+
+        var card = new Border
+        {
+            Background = Brushes.Transparent,
+            CornerRadius = new CornerRadius(1.5),
+            IsHitTestVisible = false,
+            Child = _lineProgressLayer
+        };
+        card.SizeChanged += (_, _) => UpdateLineFill();
+        return card;
+    }
+
+    private void UpdateLineFill()
+    {
+        if (_lineCard is null) return;
+        _lineProgressLayer.Width = Math.Max(0, _lineCard.ActualWidth * Math.Clamp(_availablePercent, 0, 100) / 100d);
+    }
+
+    private static LinearGradientBrush CreateLineShineBrush() => new()
+    {
+        GradientStops = new GradientStopCollection
+        {
+            new(Color.FromArgb(0, 255, 255, 255), 0),
+            new(Color.FromArgb(90, 255, 255, 255), 0.2),
+            new(Color.FromArgb(190, 255, 255, 255), 0.4),
+            new(Color.FromArgb(255, 255, 255, 255), 0.5),
+            new(Color.FromArgb(190, 255, 255, 255), 0.6),
+            new(Color.FromArgb(90, 255, 255, 255), 0.8),
+            new(Color.FromArgb(0, 255, 255, 255), 1)
+        },
+        ColorInterpolationMode = ColorInterpolationMode.SRgbLinearInterpolation,
+        StartPoint = new System.Windows.Point(0, 0),
+        EndPoint = new System.Windows.Point(1, 0)
+    };
 
     private void UpdateCompactFill()
     {

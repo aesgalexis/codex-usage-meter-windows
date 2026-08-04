@@ -4,7 +4,7 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.0] - 2026-08-04
 
 ### Changed
 
@@ -14,20 +14,27 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Keeps the last valid snapshot during temporary failures and marks its age and stale state in the interface.
 - Labels the reported balance as credits instead of assuming that it represents available resets.
 - Compact mode no longer converts credits into reset dots; dots stay hidden until Codex exposes a reliable reset count.
-- Compact-widget shine now runs once when opened or updated, avoiding unreliable claims that Codex is actively working.
-- Rounded clipping keeps the shine inside the capsule, with a short three-second burst cooldown.
+- Compact-widget shine reflects active Codex tasks, stays clipped inside the capsule and uses a three-second cadence.
 - Monochrome Sol, Luna and Terra model symbols in normal and compact widgets, sourced from the latest session turn context.
 - Shine triggering moved to immediate session writes so delayed snapshot refreshes cannot create late passes.
 - Removed the developer-oriented session-folder shortcut from the main tray menu and made compact activity animation automatic.
+- Percentage-change and 50/75/90% threshold notifications are disabled by default for new installations.
 
 ### Added
 
 - English and Spanish application catalogs covering the tray menu, widgets, tooltips and notifications.
 - Installer language selection, Windows-language detection, persistent preference and an in-app language menu.
+- Optional three-pixel usage bar above the Windows taskbar, independent from the normal and compact widgets.
+- Full-width progress that recedes from right to left as availability falls, with a high-contrast activity shine.
+
+### Fixed
+
+- Prevents activity shine from remaining active after Codex finishes when several session files change together.
+- Reconciles tracked task state before each shine cycle so missed filesystem events self-correct.
 
 ### Tests
 
-- Added coverage for dual windows, secondary-only events, replayed old snapshots, cross-session ordering and incomplete JSONL tail fragments.
+- Added coverage for dual windows, secondary-only events, replayed old snapshots, cross-session ordering, incomplete JSONL tail fragments and notification defaults.
 
 ## [0.3.0] - 2026-08-02
 
