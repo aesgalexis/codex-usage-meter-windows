@@ -6,13 +6,14 @@
     <UseWindowsForms>true</UseWindowsForms>
     <StartupObject>CodexUsageMeter.App.Program</StartupObject>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>CodexUsageMeter</AssemblyName>
     <AssemblyTitle>Codex Usage Meter for Windows</AssemblyTitle>
     <Product>Codex Usage Meter for Windows</Product>
     <Description>Windows tray app for viewing local Codex usage limits.</Description>
     <Authors>aesgalexis and contributors</Authors>
     <Copyright>Copyright © 2026 Codex Usage Meter contributors</Copyright>
-    <Version>0.4.2</Version>
+    <Version>0.4.3</Version>
     <RepositoryUrl>https://github.com/aesgalexis/codex-usage-meter-windows</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>

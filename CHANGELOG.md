@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] - 2026-08-04
+
+### Fixed
+
+- Declares per-monitor V2 DPI awareness for the mixed WPF and Windows Forms process.
+- Prevents Windows coordinate virtualization from moving the tray menu and hover widget to a different monitor.
+
 ## [0.4.2] - 2026-08-04
 
 ### Fixed
