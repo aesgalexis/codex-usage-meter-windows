@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-08-04
+
+### Added
+
+- Usage-bar display selection with Automatic, All displays and one entry for each monitor detected by Windows.
+- Persistent monitor preference with automatic fallback when the selected display is temporarily disconnected.
+- Configurable usage-bar thickness from one to five pixels.
+
+### Documentation
+
+- Added a screenshot showing the usage bar above the Windows taskbar.
+
 ## [0.4.0] - 2026-08-04
 
 ### Changed

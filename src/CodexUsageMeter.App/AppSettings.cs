@@ -15,6 +15,7 @@ public sealed class AppSettings
     public bool WidgetCompact { get; set; }
     public bool UsageBarEnabled { get; set; }
     public int UsageBarThickness { get; set; } = 3;
+    public string UsageBarDisplay { get; set; } = "auto";
     public double? WidgetLeft { get; set; }
     public double? WidgetTop { get; set; }
 

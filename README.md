@@ -37,7 +37,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 
 The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs can be shown temporarily or pinned and dragged anywhere on the desktop.
 
-The separate usage-bar option adds a non-interactive three-pixel line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as availability falls, and can remain enabled while either widget design is used for tray hover.
+The separate usage-bar option adds a non-interactive line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as availability falls, and can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
 
 ![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
 

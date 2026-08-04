@@ -15,6 +15,8 @@ namespace CodexUsageMeter.App;
 
 public sealed class UsageApplication : System.Windows.Application
 {
+    private const string AutomaticDisplay = "auto";
+    private const string AllDisplays = "all";
     private const string StartupKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string StartupValueName = "CodexUsageMeter";
     private const string AppRegistryPath = @"Software\CodexUsageMeter";
@@ -36,7 +38,7 @@ public sealed class UsageApplication : System.Windows.Application
     private Forms.ToolStripMenuItem _compactWidgetItem = null!;
     private Forms.ToolStripMenuItem _usageBarEnabledItem = null!;
     private UsageFlyoutWindow? _flyout;
-    private UsageFlyoutWindow? _usageBar;
+    private readonly Dictionary<string, UsageFlyoutWindow> _usageBars = new(StringComparer.OrdinalIgnoreCase);
     private Icon? _currentIcon;
     private UsageSnapshot? _latest;
     private AppSettings _settings = new();
@@ -66,6 +68,7 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.HoverOpened += (_, _) => ShowFlyout(false, false);
         _notifyIcon.HoverClosed += (_, _) => ScheduleFlyoutClose();
         _notifyIcon.Visible = true;
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         _flyoutCloseTimer.Tick += (_, _) =>
         {
@@ -89,14 +92,14 @@ public sealed class UsageApplication : System.Windows.Application
             if (_shineTimer.IsEnabled)
             {
                 _flyout?.PlayShine(force: true);
-                _usageBar?.PlayShine(force: true);
+                foreach (var usageBar in _usageBars.Values) usageBar.PlayShine(force: true);
             }
         };
         EnsureSessionWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
         if (_settings.WidgetPinned) Dispatcher.BeginInvoke(() => ShowFlyout(true));
-        if (_settings.UsageBarEnabled) Dispatcher.BeginInvoke(ShowUsageBar);
+        if (_settings.UsageBarEnabled) Dispatcher.BeginInvoke(ShowUsageBars);
     }
 
     private Forms.ContextMenuStrip BuildMenu()
@@ -176,8 +179,51 @@ public sealed class UsageApplication : System.Windows.Application
             thickness.DropDownItems.Add(item);
         }
 
-        menu.DropDownItems.AddRange([_usageBarEnabledItem, thickness]);
+        var display = new Forms.ToolStripMenuItem(AppText.Get("Display"));
+        display.DropDownItems.Add(CreateUsageBarDisplayItem(AppText.Get("Automatic"), AutomaticDisplay));
+        display.DropDownItems.Add(CreateUsageBarDisplayItem(AppText.Get("AllDisplays"), AllDisplays));
+        display.DropDownItems.Add(new Forms.ToolStripSeparator());
+        var screens = Forms.Screen.AllScreens;
+        for (var index = 0; index < screens.Length; index++)
+        {
+            var screen = screens[index];
+            var primary = screen.Primary ? $" — {AppText.Get("Primary")}" : string.Empty;
+            var label = $"{AppText.Get("Display")} {index + 1}{primary} — {screen.Bounds.Width}×{screen.Bounds.Height}";
+            display.DropDownItems.Add(CreateUsageBarDisplayItem(label, screen.DeviceName));
+        }
+
+        menu.DropDownItems.AddRange([_usageBarEnabledItem, thickness, display]);
         return menu;
+    }
+
+    private Forms.ToolStripMenuItem CreateUsageBarDisplayItem(string label, string value)
+    {
+        var item = new Forms.ToolStripMenuItem(label)
+        {
+            Checked = IsUsageBarDisplaySelected(value)
+        };
+        item.Click += (_, _) => SetUsageBarDisplay(value);
+        return item;
+    }
+
+    private bool IsUsageBarDisplaySelected(string value)
+    {
+        if (string.Equals(_settings.UsageBarDisplay, value, StringComparison.OrdinalIgnoreCase)) return true;
+        if (!string.Equals(value, AutomaticDisplay, StringComparison.OrdinalIgnoreCase)) return false;
+        if (_settings.UsageBarDisplay.Equals(AllDisplays, StringComparison.OrdinalIgnoreCase)) return false;
+        return !Forms.Screen.AllScreens.Any(screen =>
+            screen.DeviceName.Equals(_settings.UsageBarDisplay, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            var previous = _notifyIcon.ContextMenuStrip;
+            _notifyIcon.ContextMenuStrip = BuildMenu();
+            previous?.Dispose();
+            if (_settings.UsageBarEnabled) ShowUsageBars();
+        });
     }
 
     private Forms.ToolStripMenuItem BuildLanguageMenu()
@@ -201,7 +247,7 @@ public sealed class UsageApplication : System.Windows.Application
         previous?.Dispose();
         _flyout?.SetPinned(_flyout.IsPinned);
         _flyout?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
-        _usageBar?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
+        foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         _ = RefreshAsync();
     }
 
@@ -286,7 +332,7 @@ public sealed class UsageApplication : System.Windows.Application
                 _notifyIcon.Text = TruncateTooltip($"Codex Usage Meter: {AppText.Get("NoData")}");
                 _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
                 _flyout?.UpdateUsage(null, failure);
-                _usageBar?.UpdateUsage(null, failure);
+                foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(null, failure);
             }
         }
         finally
@@ -307,7 +353,7 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}{(stale ? $" · {AppText.Get("Stale")}" : string.Empty)}");
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
-        _usageBar?.UpdateUsage(snapshot, staleReason, stale);
+        foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(snapshot, staleReason, stale);
     }
 
     private static string LocalizeFailure(UsageFailureKind kind) => kind switch
@@ -438,7 +484,7 @@ public sealed class UsageApplication : System.Windows.Application
             if (!_shineTimer.IsEnabled)
             {
                 _flyout?.PlayShine(force: true);
-                _usageBar?.PlayShine(force: true);
+                foreach (var usageBar in _usageBars.Values) usageBar.PlayShine(force: true);
             }
             _shineTimer.Start();
         }
@@ -537,6 +583,7 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (!_settings.WidgetEnabled) return;
         _flyoutCloseTimer.Stop();
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetMode(_settings.WidgetCompact, line: false);
@@ -615,8 +662,8 @@ public sealed class UsageApplication : System.Windows.Application
     {
         _settings.UsageBarEnabled = enabled;
         _settingsStore.Save(_settings);
-        if (enabled) ShowUsageBar();
-        else _usageBar?.Hide();
+        if (enabled) ShowUsageBars();
+        else CloseUsageBars();
     }
 
     private void SetUsageBarThickness(int thickness)
@@ -626,21 +673,72 @@ public sealed class UsageApplication : System.Windows.Application
         var previous = _notifyIcon.ContextMenuStrip;
         _notifyIcon.ContextMenuStrip = BuildMenu();
         previous?.Dispose();
-        if (_usageBar is null) return;
-        _usageBar.SetLineThickness(_settings.UsageBarThickness);
-        PositionLineAboveTaskbar();
+        foreach (var (deviceName, usageBar) in _usageBars)
+        {
+            usageBar.SetLineThickness(_settings.UsageBarThickness);
+            var screen = Forms.Screen.AllScreens.FirstOrDefault(candidate => candidate.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase));
+            if (screen is not null) PositionLineAboveTaskbar(usageBar, screen);
+        }
     }
 
-    private void ShowUsageBar()
+    private void SetUsageBarDisplay(string display)
+    {
+        _settings.UsageBarDisplay = display;
+        _settingsStore.Save(_settings);
+        var previous = _notifyIcon.ContextMenuStrip;
+        _notifyIcon.ContextMenuStrip = BuildMenu();
+        previous?.Dispose();
+        if (_settings.UsageBarEnabled) ShowUsageBars();
+    }
+
+    private void ShowUsageBars()
     {
         if (!_settings.UsageBarEnabled) return;
-        _usageBar ??= new UsageFlyoutWindow();
-        _usageBar.SetPinned(true);
-        _usageBar.SetLineThickness(_settings.UsageBarThickness);
-        _usageBar.SetMode(compact: false, line: true);
-        _usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
-        PositionLineAboveTaskbar();
-        _usageBar.Show();
+        var screens = ResolveUsageBarScreens();
+        var targetNames = screens.Select(screen => screen.DeviceName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var deviceName in _usageBars.Keys.Where(deviceName => !targetNames.Contains(deviceName)).ToArray())
+        {
+            _usageBars[deviceName].Close();
+            _usageBars.Remove(deviceName);
+        }
+
+        foreach (var screen in screens)
+        {
+            if (!_usageBars.TryGetValue(screen.DeviceName, out var usageBar))
+            {
+                usageBar = new UsageFlyoutWindow();
+                _usageBars[screen.DeviceName] = usageBar;
+            }
+            usageBar.SetPinned(true);
+            usageBar.SetLineThickness(_settings.UsageBarThickness);
+            usageBar.SetMode(compact: false, line: true);
+            usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
+            PositionLineAboveTaskbar(usageBar, screen);
+            usageBar.Show();
+            Dispatcher.BeginInvoke(() => PositionLineAboveTaskbar(usageBar, screen));
+        }
+    }
+
+    private Forms.Screen[] ResolveUsageBarScreens()
+    {
+        if (_settings.UsageBarDisplay.Equals(AllDisplays, StringComparison.OrdinalIgnoreCase))
+            return Forms.Screen.AllScreens;
+
+        var selected = Forms.Screen.AllScreens.FirstOrDefault(screen =>
+            screen.DeviceName.Equals(_settings.UsageBarDisplay, StringComparison.OrdinalIgnoreCase));
+        if (selected is not null) return [selected];
+
+        var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
+            ? bounds
+            : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
+        return [Forms.Screen.FromRectangle(iconBounds)];
+    }
+
+    private void CloseUsageBars()
+    {
+        foreach (var usageBar in _usageBars.Values) usageBar.Close();
+        _usageBars.Clear();
     }
 
     private void ScheduleFlyoutClose()
@@ -667,20 +765,15 @@ public sealed class UsageApplication : System.Windows.Application
         _flyout.Top = Math.Clamp(top, work.Top * scaleY + 8, work.Bottom * scaleY - _flyout.Height - 8);
     }
 
-    private void PositionLineAboveTaskbar()
+    private static void PositionLineAboveTaskbar(UsageFlyoutWindow usageBar, Forms.Screen screen)
     {
-        if (_usageBar is null) return;
-        var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
-            ? bounds
-            : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
-        var screen = Forms.Screen.FromRectangle(iconBounds);
-        var source = PresentationSource.FromVisual(_usageBar);
+        var source = PresentationSource.FromVisual(usageBar);
         var scaleX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1d;
         var scaleY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1d;
         var work = screen.WorkingArea;
-        _usageBar.Width = work.Width * scaleX;
-        _usageBar.Left = work.Left * scaleX;
-        _usageBar.Top = work.Bottom * scaleY - _usageBar.Height;
+        usageBar.Width = work.Width * scaleX;
+        usageBar.Left = work.Left * scaleX;
+        usageBar.Top = work.Bottom * scaleY - usageBar.Height;
     }
 
     private void SaveWidgetPosition()
@@ -760,7 +853,7 @@ public sealed class UsageApplication : System.Windows.Application
         _flyoutCloseTimer.Stop();
         _sessionWatcher?.Dispose();
         _flyout?.Close();
-        _usageBar?.Close();
+        CloseUsageBars();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _currentIcon?.Dispose();
