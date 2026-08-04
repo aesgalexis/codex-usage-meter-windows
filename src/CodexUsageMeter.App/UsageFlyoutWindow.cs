@@ -39,6 +39,7 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Border _compactCard;
     private readonly Border _lineCard;
     private double _availablePercent;
+    private int _lineThickness = 3;
     private DateTimeOffset _lastShineAt = DateTimeOffset.MinValue;
 
     public UsageFlyoutWindow()
@@ -79,11 +80,17 @@ public sealed class UsageFlyoutWindow : Window
         IsLine = line;
         IsCompact = compact && !line;
         Width = IsLine || IsCompact ? 260 : 310;
-        Height = IsLine ? 3 : IsCompact ? 40 : 154;
+        Height = IsLine ? _lineThickness : IsCompact ? 40 : 154;
         Content = IsLine ? _lineCard : IsCompact ? _compactCard : _card;
         IsHitTestVisible = !IsLine;
         if (IsCompact) Dispatcher.BeginInvoke(UpdateCompactFill);
         if (IsLine) Dispatcher.BeginInvoke(UpdateLineFill);
+    }
+
+    public void SetLineThickness(int thickness)
+    {
+        _lineThickness = Math.Clamp(thickness, 1, 5);
+        if (IsLine) Height = _lineThickness;
     }
 
     public void PlayShine(bool force = false)

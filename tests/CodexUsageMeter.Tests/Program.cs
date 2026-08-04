@@ -97,6 +97,7 @@ Assert(!newSettings.NotifyOnPercentChange &&
        !newSettings.NotifyAt75Percent &&
        !newSettings.NotifyAt90Percent,
     "Una instalación nueva no debe activar notificaciones de porcentaje.");
+Assert(newSettings.UsageBarThickness == 3, "La barra de uso debe usar 3 px por defecto.");
 var thresholdOptions = NotificationOptions.Default with
 {
     NotifyAt50Percent = true,

@@ -34,7 +34,7 @@ public sealed class UsageApplication : System.Windows.Application
     private Forms.ToolStripMenuItem _disabledWidgetItem = null!;
     private Forms.ToolStripMenuItem _normalWidgetItem = null!;
     private Forms.ToolStripMenuItem _compactWidgetItem = null!;
-    private Forms.ToolStripMenuItem _usageBarItem = null!;
+    private Forms.ToolStripMenuItem _usageBarEnabledItem = null!;
     private UsageFlyoutWindow? _flyout;
     private UsageFlyoutWindow? _usageBar;
     private Icon? _currentIcon;
@@ -52,6 +52,7 @@ public sealed class UsageApplication : System.Windows.Application
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         _settings = _settingsStore.Load();
+        _settings.UsageBarThickness = Math.Clamp(_settings.UsageBarThickness, 1, 5);
         var language = _settings.Language ?? ReadInstallerLanguage() ?? AppText.DetectLanguage();
         AppText.SetLanguage(language);
         _settings.Language = AppText.CurrentLanguage;
@@ -108,8 +109,7 @@ public sealed class UsageApplication : System.Windows.Application
         keepVisible.Click += (_, _) => OpenTrayVisibilitySettings();
         var notifications = BuildNotificationsMenu();
         var widgetSize = BuildWidgetSizeMenu();
-        _usageBarItem = new Forms.ToolStripMenuItem(AppText.Get("UsageBar")) { CheckOnClick = true, Checked = _settings.UsageBarEnabled };
-        _usageBarItem.CheckedChanged += (_, _) => SetUsageBarEnabled(_usageBarItem.Checked);
+        var usageBar = BuildUsageBarMenu();
         var language = BuildLanguageMenu();
         _widgetItem = new Forms.ToolStripMenuItem(AppText.Get("ShowPinned")) { CheckOnClick = true, Checked = _settings.WidgetPinned };
         _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
@@ -129,7 +129,7 @@ public sealed class UsageApplication : System.Windows.Application
             notifications,
             _widgetItem,
             widgetSize,
-            _usageBarItem,
+            usageBar,
             language,
             _startupItem,
             new Forms.ToolStripSeparator(),
@@ -151,6 +151,32 @@ public sealed class UsageApplication : System.Windows.Application
         _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, compact: true);
         _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, compact: false);
         menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem]);
+        return menu;
+    }
+
+    private Forms.ToolStripMenuItem BuildUsageBarMenu()
+    {
+        var menu = new Forms.ToolStripMenuItem(AppText.Get("UsageBar"));
+        _usageBarEnabledItem = new Forms.ToolStripMenuItem(AppText.Get("UsageBarEnabled"))
+        {
+            CheckOnClick = true,
+            Checked = _settings.UsageBarEnabled
+        };
+        _usageBarEnabledItem.CheckedChanged += (_, _) => SetUsageBarEnabled(_usageBarEnabledItem.Checked);
+
+        var thickness = new Forms.ToolStripMenuItem(AppText.Get("Thickness"));
+        for (var pixels = 1; pixels <= 5; pixels++)
+        {
+            var value = pixels;
+            var item = new Forms.ToolStripMenuItem($"{value} px")
+            {
+                Checked = _settings.UsageBarThickness == value
+            };
+            item.Click += (_, _) => SetUsageBarThickness(value);
+            thickness.DropDownItems.Add(item);
+        }
+
+        menu.DropDownItems.AddRange([_usageBarEnabledItem, thickness]);
         return menu;
     }
 
@@ -593,11 +619,24 @@ public sealed class UsageApplication : System.Windows.Application
         else _usageBar?.Hide();
     }
 
+    private void SetUsageBarThickness(int thickness)
+    {
+        _settings.UsageBarThickness = Math.Clamp(thickness, 1, 5);
+        _settingsStore.Save(_settings);
+        var previous = _notifyIcon.ContextMenuStrip;
+        _notifyIcon.ContextMenuStrip = BuildMenu();
+        previous?.Dispose();
+        if (_usageBar is null) return;
+        _usageBar.SetLineThickness(_settings.UsageBarThickness);
+        PositionLineAboveTaskbar();
+    }
+
     private void ShowUsageBar()
     {
         if (!_settings.UsageBarEnabled) return;
         _usageBar ??= new UsageFlyoutWindow();
         _usageBar.SetPinned(true);
+        _usageBar.SetLineThickness(_settings.UsageBarThickness);
         _usageBar.SetMode(compact: false, line: true);
         _usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         PositionLineAboveTaskbar();

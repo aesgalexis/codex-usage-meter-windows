@@ -39,6 +39,8 @@ The optional widget can use a detailed normal card or a minimal compact usage ba
 
 The separate usage-bar option adds a non-interactive three-pixel line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as availability falls, and can remain enabled while either widget design is used for tray hover.
 
+![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
+
 | Normal | Compact |
 | --- | --- |
 | ![Normal Codex usage widget](docs/assets/widget-normal.png) | ![Compact Codex usage widget](docs/assets/widget-compact.png) |
