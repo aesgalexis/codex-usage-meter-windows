@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-08-04
+
+### Fixed
+
+- Positions the tray-hover widget using the DPI and physical coordinates of the monitor that owns the notification area.
+- Prevents vertically stacked mixed-DPI displays from pushing the hover widget onto the laptop screen.
+
 ## [0.4.1] - 2026-08-04
 
 ### Added

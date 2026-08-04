@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using CodexUsageMeter.Core;
 using CodexUsageMeter.Infrastructure;
@@ -755,14 +756,7 @@ public sealed class UsageApplication : System.Windows.Application
             ? bounds
             : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
         var screen = Forms.Screen.FromRectangle(iconBounds);
-        var source = PresentationSource.FromVisual(_flyout);
-        var scaleX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1d;
-        var scaleY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1d;
-        var work = screen.WorkingArea;
-        var left = (iconBounds.Left + iconBounds.Width / 2d) * scaleX - _flyout.Width / 2d;
-        var top = iconBounds.Top * scaleY - _flyout.Height - 8;
-        _flyout.Left = Math.Clamp(left, work.Left * scaleX + 8, work.Right * scaleX - _flyout.Width - 8);
-        _flyout.Top = Math.Clamp(top, work.Top * scaleY + 8, work.Bottom * scaleY - _flyout.Height - 8);
+        NativeWindowPositioning.PositionFlyout(_flyout, iconBounds, screen.WorkingArea, marginDip: 8);
     }
 
     private static void PositionLineAboveTaskbar(UsageFlyoutWindow usageBar, Forms.Screen screen)
@@ -859,6 +853,69 @@ public sealed class UsageApplication : System.Windows.Application
         _currentIcon?.Dispose();
         base.OnExit(e);
     }
+}
+
+internal static class NativeWindowPositioning
+{
+    private const uint MonitorDefaultToNearest = 2;
+    private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoActivate = 0x0010;
+    private const uint SwpNoOwnerZOrder = 0x0200;
+
+    public static void PositionFlyout(Window window, Rectangle anchor, Rectangle workingArea, double marginDip)
+    {
+        var monitorPoint = new NativePoint(
+            workingArea.Left + workingArea.Width / 2,
+            workingArea.Top + workingArea.Height / 2);
+        var monitor = MonitorFromPoint(monitorPoint, MonitorDefaultToNearest);
+        var dpi = GetMonitorDpi(monitor);
+        var scale = dpi / 96d;
+        var width = Math.Max(1, (int)Math.Round(window.Width * scale));
+        var height = Math.Max(1, (int)Math.Round(window.Height * scale));
+        var margin = (int)Math.Round(marginDip * scale);
+        var left = anchor.Left + anchor.Width / 2 - width / 2;
+        var top = anchor.Top - height - margin;
+        left = Math.Clamp(left, workingArea.Left + margin, workingArea.Right - width - margin);
+        top = Math.Clamp(top, workingArea.Top + margin, workingArea.Bottom - height - margin);
+
+        var handle = new WindowInteropHelper(window).EnsureHandle();
+        SetWindowPos(handle, IntPtr.Zero, left, top, width, height, SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
+    }
+
+    private static uint GetMonitorDpi(IntPtr monitor)
+    {
+        try
+        {
+            return GetDpiForMonitor(monitor, 0, out var dpiX, out _) == 0 ? dpiX : 96;
+        }
+        catch (DllNotFoundException)
+        {
+            return 96;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return 96;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly record struct NativePoint(int X, int Y);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
+
+    [DllImport("shcore.dll")]
+    private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr window,
+        IntPtr insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 }
 
 internal static class TrayIconFactory
