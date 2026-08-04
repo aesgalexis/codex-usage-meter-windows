@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.10.0.schema.json
+PackageIdentifier: aesgalexis.CodexUsageMeter
+PackageVersion: 0.4.2
+InstallerType: inno
+Scope: user
+UpgradeBehavior: install
+ReleaseDate: 2026-08-04
+Installers:
+  - Architecture: x64
+    MinimumOSVersion: 10.0.17763.0
+    InstallerUrl: https://github.com/aesgalexis/codex-usage-meter-windows/releases/download/v0.4.2/CodexUsageMeter-Setup-win-x64.exe
+    InstallerSha256: DFADDB289BD83E52CE63157D82E98D97848C110F8E945DFEADE39906B3EEACDF
+    AppsAndFeaturesEntries:
+      - DisplayName: Codex Usage Meter for Windows
+        Publisher: aesgalexis
+        DisplayVersion: 0.4.2
+        ProductCode: '{9B7B432F-36A6-4E80-AB97-6D020F2F0CAB}_is1'
+ManifestType: installer
+ManifestVersion: 1.10.0
