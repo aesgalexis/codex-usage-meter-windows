@@ -733,7 +733,7 @@ public sealed class UsageApplication : System.Windows.Application
         var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
             ? bounds
             : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
-        return [Forms.Screen.FromRectangle(iconBounds)];
+        return [Forms.Screen.PrimaryScreen ?? Forms.Screen.FromRectangle(iconBounds)];
     }
 
     private void CloseUsageBars()
@@ -755,7 +755,12 @@ public sealed class UsageApplication : System.Windows.Application
         var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
             ? bounds
             : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
-        var screen = Forms.Screen.FromRectangle(iconBounds);
+        var cursorPosition = _notifyIcon.GetPhysicalCursorPosition();
+        var screen = Forms.Screen.FromPoint(cursorPosition);
+        if (!Forms.Screen.FromRectangle(iconBounds).DeviceName.Equals(screen.DeviceName, StringComparison.OrdinalIgnoreCase))
+        {
+            iconBounds = new Rectangle(cursorPosition, new System.Drawing.Size(1, 1));
+        }
         NativeWindowPositioning.PositionFlyout(_flyout, iconBounds, screen.WorkingArea, marginDip: 8);
     }
 

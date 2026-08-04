@@ -98,6 +98,11 @@ public sealed class StableNotifyIcon : IDisposable
         return Shell_NotifyIconGetRect(ref identifier, out bounds) == 0;
     }
 
+    public Point GetPhysicalCursorPosition()
+    {
+        return GetPhysicalCursorPos(out var position) ? position : Forms.Cursor.Position;
+    }
+
     private void AddToShell()
     {
         if (!_visible || _icon is null || _disposed)
@@ -155,7 +160,7 @@ public sealed class StableNotifyIcon : IDisposable
 
     private void HandleTrayMessage(int message)
     {
-        var position = Forms.Cursor.Position;
+        var position = GetPhysicalCursorPosition();
         switch (message)
         {
             case 0x0406: // NIN_POPUPOPEN
@@ -171,8 +176,16 @@ public sealed class StableNotifyIcon : IDisposable
                 if (ContextMenuStrip is not null)
                 {
                     SetForegroundWindow(_window.Handle);
-                    ContextMenuStrip.Show(position);
-                    PostMessage(_window.Handle, 0, IntPtr.Zero, IntPtr.Zero);
+                    var previousDpiContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
+                    try
+                    {
+                        ContextMenuStrip.Show(position);
+                        PostMessage(_window.Handle, 0, IntPtr.Zero, IntPtr.Zero);
+                    }
+                    finally
+                    {
+                        if (previousDpiContext != IntPtr.Zero) SetThreadDpiAwarenessContext(previousDpiContext);
+                    }
                 }
                 break;
         }
@@ -291,4 +304,11 @@ public sealed class StableNotifyIcon : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool PostMessage(IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetPhysicalCursorPos(out Point point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
 }

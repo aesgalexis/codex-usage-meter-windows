@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.4] - 2026-08-04
+
+### Fixed
+
+- Uses the native physical cursor position when opening the tray menu and hover widget.
+- Forces a per-monitor V2 thread context while Windows Forms positions the tray menu.
+- Falls back to the cursor monitor when the shell-reported tray-icon rectangle belongs to a different DPI coordinate space.
+
 ## [0.4.3] - 2026-08-04
 
 ### Fixed
