@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.5] - 2026-08-08
+
+### Fixed
+
+- Shows the usage bar only while the Windows taskbar is visible.
+- Hides the usage bar whenever a maximized or full-screen application is active on its display.
+- Restores the usage bar automatically after returning to the desktop or a non-maximized window.
+
 ## [0.4.4] - 2026-08-04
 
 ### Fixed
