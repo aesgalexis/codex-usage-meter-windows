@@ -99,6 +99,12 @@ Assert(!newSettings.NotifyOnPercentChange &&
     "Una instalación nueva no debe activar notificaciones de porcentaje.");
 Assert(newSettings.UsageBarThickness == 3, "La barra de uso debe usar 3 px por defecto.");
 Assert(newSettings.UsageBarDisplay == "auto", "La barra de uso debe elegir pantalla automáticamente por defecto.");
+Assert(UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowMaximized: false),
+    "La barra debe mostrarse cuando la barra de tareas está visible y ninguna aplicación maximizada la cubre.");
+Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: false, foregroundWindowMaximized: false),
+    "La barra debe ocultarse cuando la barra de tareas no está visible.");
+Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowMaximized: true),
+    "La barra nunca debe mostrarse encima de una aplicación maximizada.");
 var thresholdOptions = NotificationOptions.Default with
 {
     NotifyAt50Percent = true,

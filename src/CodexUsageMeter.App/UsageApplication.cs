@@ -29,6 +29,7 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly DispatcherTimer _activityStateTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly DispatcherTimer _shineTimer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly DispatcherTimer _flyoutCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
+    private readonly DispatcherTimer _usageBarVisibilityTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
     private readonly Forms.ToolStripMenuItem _resetItem = new() { Enabled = false };
@@ -96,6 +97,7 @@ public sealed class UsageApplication : System.Windows.Application
                 foreach (var usageBar in _usageBars.Values) usageBar.PlayShine(force: true);
             }
         };
+        _usageBarVisibilityTimer.Tick += (_, _) => UpdateUsageBarVisibility();
         EnsureSessionWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
@@ -122,7 +124,8 @@ public sealed class UsageApplication : System.Windows.Application
         var exit = new Forms.ToolStripMenuItem(AppText.Get("Exit"));
         exit.Click += (_, _) => Shutdown();
 
-        menu.Items.AddRange([
+        menu.Items.AddRange(new Forms.ToolStripItem[]
+        {
             title,
             new Forms.ToolStripSeparator(),
             _statusItem,
@@ -138,7 +141,7 @@ public sealed class UsageApplication : System.Windows.Application
             _startupItem,
             new Forms.ToolStripSeparator(),
             exit
-        ]);
+        });
         return menu;
     }
 
@@ -154,7 +157,7 @@ public sealed class UsageApplication : System.Windows.Application
         _normalWidgetItem.Click += (_, _) => SetWidgetMode(true, compact: false);
         _compactWidgetItem.Click += (_, _) => SetWidgetMode(true, compact: true);
         _disabledWidgetItem.Click += (_, _) => SetWidgetMode(false, compact: false);
-        menu.DropDownItems.AddRange([_disabledWidgetItem, _normalWidgetItem, _compactWidgetItem]);
+        menu.DropDownItems.AddRange(new Forms.ToolStripItem[] { _disabledWidgetItem, _normalWidgetItem, _compactWidgetItem });
         return menu;
     }
 
@@ -193,7 +196,7 @@ public sealed class UsageApplication : System.Windows.Application
             display.DropDownItems.Add(CreateUsageBarDisplayItem(label, screen.DeviceName));
         }
 
-        menu.DropDownItems.AddRange([_usageBarEnabledItem, thickness, display]);
+        menu.DropDownItems.AddRange(new Forms.ToolStripItem[] { _usageBarEnabledItem, thickness, display });
         return menu;
     }
 
@@ -234,7 +237,7 @@ public sealed class UsageApplication : System.Windows.Application
         var spanish = new Forms.ToolStripMenuItem("Español") { Checked = AppText.CurrentLanguage == AppText.Spanish };
         english.Click += (_, _) => ChangeLanguage(AppText.English);
         spanish.Click += (_, _) => ChangeLanguage(AppText.Spanish);
-        menu.DropDownItems.AddRange([english, spanish]);
+        menu.DropDownItems.AddRange(new Forms.ToolStripItem[] { english, spanish });
         return menu;
     }
 
@@ -663,8 +666,16 @@ public sealed class UsageApplication : System.Windows.Application
     {
         _settings.UsageBarEnabled = enabled;
         _settingsStore.Save(_settings);
-        if (enabled) ShowUsageBars();
-        else CloseUsageBars();
+        if (enabled)
+        {
+            ShowUsageBars();
+            _usageBarVisibilityTimer.Start();
+        }
+        else
+        {
+            _usageBarVisibilityTimer.Stop();
+            CloseUsageBars();
+        }
     }
 
     private void SetUsageBarThickness(int thickness)
@@ -716,9 +727,36 @@ public sealed class UsageApplication : System.Windows.Application
             usageBar.SetMode(compact: false, line: true);
             usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
             PositionLineAboveTaskbar(usageBar, screen);
-            usageBar.Show();
+            SetUsageBarVisibility(usageBar, screen);
             Dispatcher.BeginInvoke(() => PositionLineAboveTaskbar(usageBar, screen));
         }
+
+        _usageBarVisibilityTimer.Start();
+    }
+
+    private void UpdateUsageBarVisibility()
+    {
+        if (!_settings.UsageBarEnabled) return;
+
+        foreach (var (deviceName, usageBar) in _usageBars)
+        {
+            var screen = Forms.Screen.AllScreens.FirstOrDefault(candidate =>
+                candidate.DeviceName.Equals(deviceName, StringComparison.OrdinalIgnoreCase));
+            if (screen is not null) SetUsageBarVisibility(usageBar, screen);
+            else usageBar.Hide();
+        }
+    }
+
+    private static void SetUsageBarVisibility(UsageFlyoutWindow usageBar, Forms.Screen screen)
+    {
+        if (!NativeTaskbarState.ShouldShowUsageBar(screen))
+        {
+            if (usageBar.IsVisible) usageBar.Hide();
+            return;
+        }
+
+        PositionLineAboveTaskbar(usageBar, screen);
+        if (!usageBar.IsVisible) usageBar.Show();
     }
 
     private Forms.Screen[] ResolveUsageBarScreens()
@@ -850,6 +888,7 @@ public sealed class UsageApplication : System.Windows.Application
         _activityStateTimer.Stop();
         _shineTimer.Stop();
         _flyoutCloseTimer.Stop();
+        _usageBarVisibilityTimer.Stop();
         _sessionWatcher?.Dispose();
         _flyout?.Close();
         CloseUsageBars();
