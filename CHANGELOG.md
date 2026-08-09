@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.6] - 2026-08-09
+
+### Fixed
+
+- Stops the activity shine when Codex reports a cancelled, failed or aborted task.
+- Expires orphaned activity after ten minutes without session writes, preventing interrupted tasks from leaving the shine stuck indefinitely.
+- Reads the complete session tail even when an asynchronous file read returns only part of the requested data.
+
 ## [0.4.5] - 2026-08-08
 
 ### Fixed

@@ -97,6 +97,30 @@ Assert(!newSettings.NotifyOnPercentChange &&
        !newSettings.NotifyAt75Percent &&
        !newSettings.NotifyAt90Percent,
     "Una instalación nueva no debe activar notificaciones de porcentaje.");
+var activityPath = Path.Combine(Path.GetTempPath(), $"codex-activity-{Guid.NewGuid():N}.jsonl");
+try
+{
+    await File.WriteAllTextAsync(activityPath, "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}}\n");
+    var activityNow = DateTimeOffset.UtcNow;
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == true,
+        "Una tarea reciente debe activar el brillo.");
+    File.SetLastWriteTimeUtc(activityPath, activityNow.UtcDateTime.Subtract(TimeSpan.FromMinutes(11)));
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == false,
+        "Una tarea sin eventos recientes no debe dejar el brillo atascado.");
+    await File.AppendAllTextAsync(activityPath, "{\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}}\n");
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(10)) == false,
+        "Una tarea abortada debe apagar el brillo.");
+    await File.AppendAllTextAsync(activityPath, "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}}\n");
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(10)) == true,
+        "El evento de actividad más reciente debe prevalecer sobre un aborto anterior.");
+    await File.AppendAllTextAsync(activityPath, "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_failed\"}}\n");
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(10)) == false,
+        "Una tarea fallida debe apagar el brillo.");
+}
+finally
+{
+    File.Delete(activityPath);
+}
 Assert(newSettings.UsageBarThickness == 3, "La barra de uso debe usar 3 px por defecto.");
 Assert(newSettings.UsageBarDisplay == "auto", "La barra de uso debe elegir pantalla automáticamente por defecto.");
 Assert(UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowMaximized: false),

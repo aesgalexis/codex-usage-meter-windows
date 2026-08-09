@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -22,6 +20,7 @@ public sealed class UsageApplication : System.Windows.Application
     private const string StartupValueName = "CodexUsageMeter";
     private const string AppRegistryPath = @"Software\CodexUsageMeter";
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan TaskInactiveAfter = TimeSpan.FromMinutes(10);
     private readonly IUsageProvider _provider = new CodexSessionUsageProvider();
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
@@ -472,7 +471,7 @@ public sealed class UsageApplication : System.Windows.Application
 
     private async Task UpdateActivityStateAsync(string path, bool updateTimer = true)
     {
-        var isActive = await ReadLatestTaskStateAsync(path);
+        var isActive = await TaskActivityReader.ReadLatestAsync(path, DateTimeOffset.UtcNow, TaskInactiveAfter);
         if (isActive is null) return;
 
         if (isActive.Value) _activeTaskFiles[path] = true;
@@ -496,50 +495,6 @@ public sealed class UsageApplication : System.Windows.Application
         {
             _shineTimer.Stop();
         }
-    }
-
-    private static async Task<bool?> ReadLatestTaskStateAsync(string path)
-    {
-        try
-        {
-            await using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete,
-                bufferSize: 4096,
-                useAsync: true);
-            var bytesToRead = (int)Math.Min(stream.Length, 128 * 1024);
-            stream.Seek(-bytesToRead, SeekOrigin.End);
-            var buffer = new byte[bytesToRead];
-            var read = await stream.ReadAsync(buffer);
-            var lines = Encoding.UTF8.GetString(buffer, 0, read)
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-            for (var index = lines.Length - 1; index >= 0; index--)
-            {
-                try
-                {
-                    using var document = JsonDocument.Parse(lines[index].TrimEnd('\r'));
-                    var root = document.RootElement;
-                    if (!root.TryGetProperty("type", out var type) || type.GetString() != "event_msg" ||
-                        !root.TryGetProperty("payload", out var payload) ||
-                        !payload.TryGetProperty("type", out var payloadType)) continue;
-
-                    var eventType = payloadType.GetString();
-                    if (eventType == "task_started") return true;
-                    if (eventType == "task_complete") return false;
-                }
-                catch (JsonException)
-                {
-                    // The first or last line may be incomplete while Codex is writing it.
-                }
-            }
-        }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
-
-        return null;
     }
 
     private void OnSessionWatcherError(object sender, ErrorEventArgs e)
