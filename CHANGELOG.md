@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.7] - 2026-08-10
+
+### Fixed
+
+- Keeps the usage bar visible when the Windows desktop is selected.
+- Distinguishes the `Progman` and `WorkerW` desktop windows from maximized or full-screen applications.
+
 ## [0.4.6] - 2026-08-09
 
 ### Fixed

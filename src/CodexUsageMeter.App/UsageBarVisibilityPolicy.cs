@@ -7,8 +7,11 @@ namespace CodexUsageMeter.App;
 
 public static class UsageBarVisibilityPolicy
 {
-    public static bool ShouldShow(bool taskbarVisible, bool foregroundWindowMaximized) =>
-        taskbarVisible && !foregroundWindowMaximized;
+    public static bool ShouldShow(
+        bool taskbarVisible,
+        bool foregroundWindowMaximized,
+        bool foregroundWindowIsDesktop = false) =>
+        taskbarVisible && (!foregroundWindowMaximized || foregroundWindowIsDesktop);
 }
 
 internal static class NativeTaskbarState
@@ -16,9 +19,7 @@ internal static class NativeTaskbarState
     private const int MinimumVisibleTaskbarThickness = 3;
 
     public static bool ShouldShowUsageBar(Forms.Screen screen) =>
-        UsageBarVisibilityPolicy.ShouldShow(
-            IsTaskbarVisible(screen),
-            IsForegroundWindowMaximizedOn(screen));
+        UsageBarVisibilityPolicy.ShouldShow(IsTaskbarVisible(screen), IsForegroundWindowMaximizedOn(screen));
 
     private static bool IsTaskbarVisible(Forms.Screen screen)
     {
@@ -47,6 +48,7 @@ internal static class NativeTaskbarState
     {
         var foreground = GetForegroundWindow();
         if (foreground == IntPtr.Zero || !IsWindowVisible(foreground)) return false;
+        if (IsDesktopWindow(foreground)) return false;
 
         GetWindowThreadProcessId(foreground, out var processId);
         if (processId == (uint)Environment.ProcessId) return false;
@@ -65,9 +67,17 @@ internal static class NativeTaskbarState
 
     private static bool IsTaskbarWindow(IntPtr window)
     {
+        return GetWindowClassName(window) is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
+    }
+
+    private static bool IsDesktopWindow(IntPtr window) =>
+        GetWindowClassName(window) is "Progman" or "WorkerW";
+
+    private static string GetWindowClassName(IntPtr window)
+    {
         var className = new StringBuilder(64);
         _ = GetClassName(window, className, className.Capacity);
-        return className.ToString() is "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
+        return className.ToString();
     }
 
     private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);

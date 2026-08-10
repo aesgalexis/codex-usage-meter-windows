@@ -129,6 +129,11 @@ Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: false, foregroundWin
     "La barra debe ocultarse cuando la barra de tareas no está visible.");
 Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowMaximized: true),
     "La barra nunca debe mostrarse encima de una aplicación maximizada.");
+Assert(UsageBarVisibilityPolicy.ShouldShow(
+        taskbarVisible: true,
+        foregroundWindowMaximized: true,
+        foregroundWindowIsDesktop: true),
+    "La barra debe seguir visible al seleccionar el escritorio aunque Windows lo marque como maximizado.");
 var thresholdOptions = NotificationOptions.Default with
 {
     NotifyAt50Percent = true,
