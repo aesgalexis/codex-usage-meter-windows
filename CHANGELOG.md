@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.8] - 2026-08-21
+
+### Fixed
+
+- Keeps the usage bar visible for normally maximized windows while the Windows taskbar remains visible.
+- Hides the usage bar only when the foreground window also covers the taskbar area, as in full-screen mode.
+
 ## [0.4.7] - 2026-08-10
 
 ### Fixed

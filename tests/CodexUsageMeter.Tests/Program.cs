@@ -123,17 +123,22 @@ finally
 }
 Assert(newSettings.UsageBarThickness == 3, "La barra de uso debe usar 3 px por defecto.");
 Assert(newSettings.UsageBarDisplay == "auto", "La barra de uso debe elegir pantalla automáticamente por defecto.");
-Assert(UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowMaximized: false),
-    "La barra debe mostrarse cuando la barra de tareas está visible y ninguna aplicación maximizada la cubre.");
-Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: false, foregroundWindowMaximized: false),
+Assert(UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowFullScreen: false),
+    "La barra debe mostrarse cuando la barra de tareas está visible y ninguna aplicación a pantalla completa la cubre.");
+Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: false, foregroundWindowFullScreen: false),
     "La barra debe ocultarse cuando la barra de tareas no está visible.");
-Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowMaximized: true),
-    "La barra nunca debe mostrarse encima de una aplicación maximizada.");
+Assert(!UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowFullScreen: true),
+    "La barra nunca debe mostrarse encima de una aplicación a pantalla completa.");
 Assert(UsageBarVisibilityPolicy.ShouldShow(
         taskbarVisible: true,
-        foregroundWindowMaximized: true,
+        foregroundWindowFullScreen: true,
         foregroundWindowIsDesktop: true),
-    "La barra debe seguir visible al seleccionar el escritorio aunque Windows lo marque como maximizado.");
+    "La barra debe seguir visible al seleccionar el escritorio aunque cubra toda la pantalla.");
+var screenBounds = Rectangle.FromLTRB(0, 0, 1920, 1080);
+Assert(!UsageBarVisibilityPolicy.IsFullScreen(Rectangle.FromLTRB(0, 0, 1920, 1040), screenBounds),
+    "Una ventana maximizada que respeta la barra de tareas no debe tratarse como pantalla completa.");
+Assert(UsageBarVisibilityPolicy.IsFullScreen(Rectangle.FromLTRB(0, 0, 1920, 1080), screenBounds),
+    "Una ventana que cubre también la zona de la barra de tareas debe tratarse como pantalla completa.");
 var thresholdOptions = NotificationOptions.Default with
 {
     NotifyAt50Percent = true,
