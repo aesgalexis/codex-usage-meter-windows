@@ -13,7 +13,7 @@ public static class TaskActivityReader
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
             var lastWrite = File.GetLastWriteTimeUtc(path);
-            var bytesToRead = (int)Math.Min(stream.Length, 128 * 1024);
+            var bytesToRead = (int)Math.Min(stream.Length, 1024 * 1024);
             stream.Seek(-bytesToRead, SeekOrigin.End);
             var buffer = new byte[bytesToRead];
             var read = 0;

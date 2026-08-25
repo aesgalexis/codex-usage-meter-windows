@@ -4,6 +4,23 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-08-25
+
+### Added
+
+- Adds a polished bilingual About window with installed-version, privacy, data-source, license, project, support and release information.
+- Adds linked unatomo attribution to the About window.
+
+### Changed
+
+- Uses the rolling five-hour limit for the tray icon while keeping widgets, notifications and the taskbar line on the weekly limit.
+- Shows both five-hour and weekly availability in the tray tooltip.
+
+### Fixed
+
+- Restores the recurring white activity shine while Codex is working by combining legacy session task events with current local runtime-write activity.
+- Keeps task-start detection reliable in long session tails by expanding the inspected activity window from 128 KB to 1 MB.
+
 ## [0.5.1] - 2026-08-25
 
 ### Fixed

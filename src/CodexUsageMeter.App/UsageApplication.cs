@@ -44,11 +44,14 @@ public sealed class UsageApplication : System.Windows.Application
     private UsageSnapshot? _latest;
     private AppSettings _settings = new();
     private FileSystemWatcher? _sessionWatcher;
+    private FileSystemWatcher? _runtimeActivityWatcher;
     private readonly HashSet<string> _pendingActivityPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, bool> _activeTaskFiles = new(StringComparer.OrdinalIgnoreCase);
     private bool _isRefreshing;
     private bool _latestIsStale;
     private UsageFailureKind _latestFailureKind;
+    private DateTimeOffset _runtimeActivityUntil = DateTimeOffset.MinValue;
+    private AboutWindow? _aboutWindow;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -98,6 +101,7 @@ public sealed class UsageApplication : System.Windows.Application
         };
         _usageBarVisibilityTimer.Tick += (_, _) => UpdateUsageBarVisibility();
         EnsureSessionWatcher();
+        EnsureRuntimeActivityWatcher();
         _refreshTimer.Start();
         _ = RefreshAsync();
         if (_settings.WidgetPinned) Dispatcher.BeginInvoke(() => ShowFlyout(true));
@@ -116,6 +120,8 @@ public sealed class UsageApplication : System.Windows.Application
         var widgetSize = BuildWidgetSizeMenu();
         var usageBar = BuildUsageBarMenu();
         var language = BuildLanguageMenu();
+        var about = new Forms.ToolStripMenuItem(AppText.Get("About"));
+        about.Click += (_, _) => ShowAboutWindow();
         _widgetItem = new Forms.ToolStripMenuItem(AppText.Get("ShowPinned")) { CheckOnClick = true, Checked = _settings.WidgetPinned };
         _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
         _startupItem = new Forms.ToolStripMenuItem(AppText.Get("StartWindows")) { CheckOnClick = true, Checked = IsStartupEnabled() };
@@ -139,6 +145,7 @@ public sealed class UsageApplication : System.Windows.Application
             language,
             _startupItem,
             new Forms.ToolStripSeparator(),
+            about,
             exit
         });
         return menu;
@@ -249,6 +256,8 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.ContextMenuStrip = BuildMenu();
         previous?.Dispose();
         _flyout?.SetPinned(_flyout.IsPinned);
+        _aboutWindow?.Close();
+        _aboutWindow = null;
         _flyout?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         _ = RefreshAsync();
@@ -341,6 +350,7 @@ public sealed class UsageApplication : System.Windows.Application
         finally
         {
             EnsureSessionWatcher();
+            EnsureRuntimeActivityWatcher();
             _isRefreshing = false;
         }
     }
@@ -348,14 +358,18 @@ public sealed class UsageApplication : System.Windows.Application
     private void UpdateUsageDisplay(UsageSnapshot snapshot, bool stale, string? staleReason = null)
     {
         var weeklyWindow = snapshot.WeeklyWindow;
+        var trayWindow = snapshot.FiveHourWindow ?? weeklyWindow;
         var available = (int)Math.Round(weeklyWindow.AvailablePercent);
         _statusItem.Text = AppText.Get("Available", available, weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
         if (stale) _statusItem.Text += $" · {staleReason ?? AppText.Get("Stale")}";
         _resetItem.Text = weeklyWindow.ResetsAt is { } reset
             ? AppText.Get("ResetAt", reset.ToLocalTime().ToString("g", AppText.Culture))
             : AppText.Get("NoReset");
-        _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}{(stale ? $" · {AppText.Get("Stale")}" : string.Empty)}");
-        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(weeklyWindow.AvailablePercent));
+        _notifyIcon.Text = TruncateTooltip(AppText.Get(
+            "TrayTooltip",
+            Math.Round(trayWindow.AvailablePercent),
+            Math.Round(weeklyWindow.AvailablePercent)) + (stale ? $" · {AppText.Get("Stale")}" : string.Empty));
+        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(trayWindow.AvailablePercent));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(snapshot, staleReason, stale);
     }
@@ -484,7 +498,7 @@ public sealed class UsageApplication : System.Windows.Application
 
     private void UpdateShineTimerState()
     {
-        if (_activeTaskFiles.Values.Any(active => active))
+        if (_activeTaskFiles.Values.Any(active => active) || DateTimeOffset.Now < _runtimeActivityUntil)
         {
             if (!_shineTimer.IsEnabled)
             {
@@ -508,6 +522,57 @@ public sealed class UsageApplication : System.Windows.Application
             _sessionWatcher?.Dispose();
             _sessionWatcher = null;
         });
+    }
+
+    private void EnsureRuntimeActivityWatcher()
+    {
+        if (_runtimeActivityWatcher is not null) return;
+        var codexHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        if (!Directory.Exists(codexHome)) return;
+
+        try
+        {
+            _runtimeActivityWatcher = new FileSystemWatcher(codexHome, "logs_*.sqlite-wal")
+            {
+                IncludeSubdirectories = false,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+                EnableRaisingEvents = true
+            };
+            _runtimeActivityWatcher.Changed += OnRuntimeActivityChanged;
+            _runtimeActivityWatcher.Created += OnRuntimeActivityChanged;
+            _runtimeActivityWatcher.Renamed += OnRuntimeActivityChanged;
+            _runtimeActivityWatcher.Error += (_, _) => Dispatcher.BeginInvoke(() =>
+            {
+                _runtimeActivityWatcher?.Dispose();
+                _runtimeActivityWatcher = null;
+            });
+        }
+        catch (IOException) { _runtimeActivityWatcher = null; }
+        catch (UnauthorizedAccessException) { _runtimeActivityWatcher = null; }
+    }
+
+    private void OnRuntimeActivityChanged(object sender, FileSystemEventArgs e)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            var now = DateTimeOffset.Now;
+            _runtimeActivityUntil = now.AddSeconds(5);
+            UpdateShineTimerState();
+        });
+    }
+
+    private void ShowAboutWindow()
+    {
+        if (_aboutWindow is { IsVisible: true })
+        {
+            _aboutWindow.Activate();
+            return;
+        }
+
+        _aboutWindow = new AboutWindow();
+        _aboutWindow.Closed += (_, _) => _aboutWindow = null;
+        _aboutWindow.Show();
+        _aboutWindow.Activate();
     }
 
     private void OnTrayMouseClick(object? sender, Forms.MouseEventArgs e)
@@ -848,6 +913,8 @@ public sealed class UsageApplication : System.Windows.Application
         _flyoutCloseTimer.Stop();
         _usageBarVisibilityTimer.Stop();
         _sessionWatcher?.Dispose();
+        _runtimeActivityWatcher?.Dispose();
+        _aboutWindow?.Close();
         _flyout?.Close();
         CloseUsageBars();
         _notifyIcon.Visible = false;

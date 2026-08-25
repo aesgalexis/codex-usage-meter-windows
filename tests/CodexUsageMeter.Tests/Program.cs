@@ -108,6 +108,10 @@ try
     var activityNow = DateTimeOffset.UtcNow;
     Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == true,
         "Una tarea reciente debe activar el brillo.");
+    await File.AppendAllTextAsync(activityPath,
+        $"{{\"type\":\"event_msg\",\"payload\":{{\"type\":\"item_completed\",\"padding\":\"{new string('x', 180_000)}\"}}}}\n");
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == true,
+        "El inicio de una tarea larga debe seguir encontrándose más allá de los antiguos 128 KB.");
     File.SetLastWriteTimeUtc(activityPath, activityNow.UtcDateTime.Subtract(TimeSpan.FromMinutes(11)));
     Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == false,
         "Una tarea sin eventos recientes no debe dejar el brillo atascado.");

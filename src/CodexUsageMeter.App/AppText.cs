@@ -15,7 +15,7 @@ public static class AppText
         ["KeepTray"] = "Always show in system tray...",
         ["Notifications"] = "Notifications", ["NotifyChange"] = "When the percentage changes",
         ["Notify50"] = "At 50% used", ["Notify75"] = "At 75% used", ["Notify90"] = "At 90% used",
-        ["NotifyReset"] = "When the limit resets", ["Exit"] = "Exit", ["Widget"] = "Widget",
+        ["NotifyReset"] = "When the limit resets", ["Exit"] = "Exit", ["About"] = "About...", ["Widget"] = "Widget",
         ["Disabled"] = "Disabled", ["Normal"] = "Normal", ["Compact"] = "Compact", ["UsageBar"] = "Usage bar",
         ["UsageBarEnabled"] = "Enabled", ["Thickness"] = "Thickness",
         ["Display"] = "Display", ["Automatic"] = "Automatic", ["AllDisplays"] = "All displays", ["Primary"] = "Primary",
@@ -23,6 +23,7 @@ public static class AppText
         ["Threshold"] = "Codex weekly usage reached {0}%", ["LimitReset"] = "The Codex weekly limit has reset",
         ["BalloonUsage"] = "Codex weekly usage", ["BalloonUnavailable"] = "Codex usage unavailable",
         ["BalloonNoData"] = "Run a Codex task and refresh.", ["AvailableUsed"] = "Weekly: {0}% available ({1}% used).",
+        ["TrayTooltip"] = "Codex · 5h: {0}% · weekly: {1}%",
         ["Pin"] = "Pin widget", ["Unpin"] = "Unpin widget", ["NoData"] = "No data",
         ["WaitingTask"] = "Run a task in Codex", ["AutoUpdate"] = "The card will update automatically",
         ["ResetsUnknown"] = "Available resets: no data", ["AvailableText"] = "{0}% weekly available",
@@ -34,7 +35,13 @@ public static class AppText
         ["Credits"] = "Credits: {0}", ["NoCredits"] = "Credits: no data", ["Stale"] = "Stale",
         ["JustNow"] = "just now", ["MinutesAgo"] = "{0} min ago", ["HoursAgo"] = "{0} h ago", ["DaysAgo"] = "{0} d ago",
         ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex is not installed or has no sessions",
-        ["NoSnapshots"] = "Waiting for a Codex usage snapshot", ["ReadError"] = "Temporary session read error", ["AccessDenied"] = "Codex sessions cannot be accessed"
+        ["NoSnapshots"] = "Waiting for a Codex usage snapshot", ["ReadError"] = "Temporary session read error", ["AccessDenied"] = "Codex sessions cannot be accessed",
+        ["AboutTagline"] = "Weekly and five-hour Codex usage, at a glance.",
+        ["AboutPrivacyTitle"] = "Private by design", ["AboutPrivacy"] = "Runs locally, reads only usage and task-state metadata, and sends no analytics or telemetry.",
+        ["AboutSourceTitle"] = "Local data source", ["AboutSource"] = "Uses session data written by Codex. No password, API key, or account connection is required.",
+        ["AboutLicenseTitle"] = "Open source", ["AboutLicense"] = "Released under the MIT License. Codex is a product of OpenAI; this community app is independent and unofficial.",
+        ["AboutProject"] = "Project on GitHub", ["AboutReleases"] = "Releases", ["AboutIssues"] = "Report an issue",
+        ["AboutPowered"] = "Powered by unatomo", ["AboutClose"] = "Close", ["AboutVersion"] = "Version {0}"
     };
 
     private static readonly IReadOnlyDictionary<string, string> Es = new Dictionary<string, string>
@@ -46,7 +53,7 @@ public static class AppText
         ["KeepTray"] = "Mostrar siempre en la bandeja...",
         ["Notifications"] = "Notificaciones", ["NotifyChange"] = "Al cambiar el porcentaje",
         ["Notify50"] = "Al alcanzar 50 % usado", ["Notify75"] = "Al alcanzar 75 % usado", ["Notify90"] = "Al alcanzar 90 % usado",
-        ["NotifyReset"] = "Al restablecerse el límite", ["Exit"] = "Salir", ["Widget"] = "Widget",
+        ["NotifyReset"] = "Al restablecerse el límite", ["Exit"] = "Salir", ["About"] = "Acerca de...", ["Widget"] = "Widget",
         ["Disabled"] = "Desactivado", ["Normal"] = "Normal", ["Compact"] = "Compacto", ["UsageBar"] = "Barra de uso",
         ["UsageBarEnabled"] = "Activada", ["Thickness"] = "Grosor",
         ["Display"] = "Pantalla", ["Automatic"] = "Automática", ["AllDisplays"] = "Todas las pantallas", ["Primary"] = "Principal",
@@ -54,6 +61,7 @@ public static class AppText
         ["Threshold"] = "El uso semanal de Codex ha alcanzado el {0}%", ["LimitReset"] = "El límite semanal de Codex se ha restablecido",
         ["BalloonUsage"] = "Uso semanal de Codex", ["BalloonUnavailable"] = "Uso de Codex no disponible",
         ["BalloonNoData"] = "Ejecuta una tarea en Codex y vuelve a actualizar.", ["AvailableUsed"] = "Semanal: {0}% disponible ({1}% usado).",
+        ["TrayTooltip"] = "Codex · 5h: {0}% · semanal: {1}%",
         ["Pin"] = "Fijar widget", ["Unpin"] = "Soltar widget", ["NoData"] = "Sin datos",
         ["WaitingTask"] = "Ejecuta una tarea en Codex", ["AutoUpdate"] = "Actualizaremos la tarjeta automáticamente",
         ["ResetsUnknown"] = "Resets disponibles: sin datos", ["AvailableText"] = "{0}% semanal disponible",
@@ -65,7 +73,13 @@ public static class AppText
         ["Credits"] = "Créditos: {0}", ["NoCredits"] = "Créditos: sin datos", ["Stale"] = "Desactualizado",
         ["JustNow"] = "ahora", ["MinutesAgo"] = "hace {0} min", ["HoursAgo"] = "hace {0} h", ["DaysAgo"] = "hace {0} d",
         ["WindowUsed"] = "{0} {1}%", ["SessionsMissing"] = "Codex no está instalado o no tiene sesiones",
-        ["NoSnapshots"] = "Esperando datos de uso de Codex", ["ReadError"] = "Error temporal al leer las sesiones", ["AccessDenied"] = "No se puede acceder a las sesiones de Codex"
+        ["NoSnapshots"] = "Esperando datos de uso de Codex", ["ReadError"] = "Error temporal al leer las sesiones", ["AccessDenied"] = "No se puede acceder a las sesiones de Codex",
+        ["AboutTagline"] = "El uso semanal y de cinco horas de Codex, de un vistazo.",
+        ["AboutPrivacyTitle"] = "Privado por diseño", ["AboutPrivacy"] = "Funciona localmente, solo lee metadatos de uso y estado de tareas, y no envía analítica ni telemetría.",
+        ["AboutSourceTitle"] = "Fuente de datos local", ["AboutSource"] = "Usa datos de sesión escritos por Codex. No necesita contraseña, clave API ni conectar una cuenta.",
+        ["AboutLicenseTitle"] = "Código abierto", ["AboutLicense"] = "Publicado bajo la licencia MIT. Codex es un producto de OpenAI; esta aplicación comunitaria es independiente y no oficial.",
+        ["AboutProject"] = "Proyecto en GitHub", ["AboutReleases"] = "Versiones", ["AboutIssues"] = "Informar de un problema",
+        ["AboutPowered"] = "Powered by unatomo", ["AboutClose"] = "Cerrar", ["AboutVersion"] = "Versión {0}"
     };
 
     public static CultureInfo Culture { get; private set; } = CultureInfo.GetCultureInfo(English);
