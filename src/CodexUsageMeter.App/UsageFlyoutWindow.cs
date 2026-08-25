@@ -32,6 +32,7 @@ public sealed class UsageFlyoutWindow : Window
     private readonly TranslateTransform _shineTranslation = new();
     private readonly Grid _lineProgressLayer = new();
     private readonly Border _lineFill = new();
+    private readonly Border _lineFiveHourMarker = new();
     private readonly Border _lineActivityShine = new();
     private readonly TranslateTransform _lineShineTranslation = new();
     private readonly RectangleGeometry _compactClip = new() { RadiusX = 20, RadiusY = 20 };
@@ -39,6 +40,8 @@ public sealed class UsageFlyoutWindow : Window
     private readonly Border _compactCard;
     private readonly Border _lineCard;
     private double _availablePercent;
+    private double _lineAvailablePercent;
+    private double? _fiveHourAvailablePercent;
     private int _lineThickness = 3;
     private DateTimeOffset _lastShineAt = DateTimeOffset.MinValue;
 
@@ -90,7 +93,11 @@ public sealed class UsageFlyoutWindow : Window
     public void SetLineThickness(int thickness)
     {
         _lineThickness = Math.Clamp(thickness, 1, 5);
-        if (IsLine) Height = _lineThickness;
+        if (IsLine)
+        {
+            Height = _lineThickness;
+            UpdateLineFill();
+        }
     }
 
     public void PlayShine(bool force = false)
@@ -127,6 +134,8 @@ public sealed class UsageFlyoutWindow : Window
             _progress.Value = 0;
             _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             _availablePercent = 0;
+            _lineAvailablePercent = 0;
+            _fiveHourAvailablePercent = null;
             _compactPercent.Text = AppText.Get("NoData");
             _compactDots.Text = string.Empty;
             _compactDots.ToolTip = null;
@@ -138,31 +147,39 @@ public sealed class UsageFlyoutWindow : Window
             return;
         }
 
-        var available = (int)Math.Round(snapshot.AvailablePercent);
+        var weeklyWindow = snapshot.WeeklyWindow;
+        var available = (int)Math.Round(weeklyWindow.AvailablePercent);
         _available.Text = AppText.Get("AvailableText", available);
         _details.Text = snapshot.Windows.Count > 1
             ? string.Join(" · ", snapshot.Windows.Select(window => AppText.Get("WindowUsed", FormatWindow(window.WindowMinutes), window.UsedPercent.ToString("0.#", AppText.Culture))))
             : AppText.Get("UsedText", snapshot.UsedPercent.ToString("0.#", AppText.Culture));
-        _reset.Text = snapshot.ResetsAt is { } reset
-            ? FormatTimeUntilReset(reset)
+        var weeklyReset = weeklyWindow.ResetsAt is { } reset
+            ? AppText.Get("WindowResets", "7d", FormatResetCountdown(reset))
             : AppText.Get("Updated", snapshot.ObservedAt.ToLocalTime().ToString("t", AppText.Culture));
+        var fiveHourWindow = snapshot.FiveHourWindow;
+        var fiveHourReset = fiveHourWindow?.ResetsAt is { } fiveHourResetAt
+            ? AppText.Get("WindowResets", "5h", FormatResetCountdown(fiveHourResetAt))
+            : null;
+        _reset.Text = fiveHourReset is null ? weeklyReset : $"{weeklyReset} · {fiveHourReset}";
         var age = FormatAge(snapshot.ObservedAt);
         var creditsText = snapshot.CreditBalance is { } balance
             ? AppText.Get("Credits", balance.ToString("0.##", AppText.Culture))
             : AppText.Get("NoCredits");
         _credits.Text = stale ? $"{AppText.Get("Stale")}: {age} · {creditsText}" : $"{age} · {creditsText}";
         _credits.ToolTip = stale ? error : null;
-        _progress.Value = snapshot.AvailablePercent;
+        _progress.Value = weeklyWindow.AvailablePercent;
         _progress.Foreground = new SolidColorBrush(available switch
         {
             >= 50 => Color.FromRgb(32, 180, 110),
             >= 20 => Color.FromRgb(240, 170, 35),
             _ => Color.FromRgb(220, 65, 70)
         });
-        _availablePercent = snapshot.AvailablePercent;
+        _availablePercent = weeklyWindow.AvailablePercent;
+        _lineAvailablePercent = weeklyWindow.AvailablePercent;
+        _fiveHourAvailablePercent = snapshot.FiveHourWindow?.AvailablePercent;
         _compactPercent.Text = $"{available}%";
-        _compactDots.Text = string.Empty;
-        _compactDots.ToolTip = null;
+        _compactDots.Text = fiveHourReset ?? string.Empty;
+        _compactDots.ToolTip = fiveHourWindow?.ResetsAt?.ToLocalTime().ToString("g", AppText.Culture);
         SetModelIcon(snapshot.ActiveModel);
         _compactFill.Background = _progress.Foreground;
         _lineFill.Background = _progress.Foreground;
@@ -230,14 +247,18 @@ public sealed class UsageFlyoutWindow : Window
         return AppText.Get("DaysAgo", Math.Max(1, (int)age.TotalDays));
     }
 
-    private static string FormatTimeUntilReset(DateTimeOffset reset)
+    private static string FormatResetCountdown(DateTimeOffset reset)
     {
         var remaining = reset - DateTimeOffset.Now;
-        if (remaining <= TimeSpan.Zero) return AppText.Get("ResetPending");
-        if (remaining < TimeSpan.FromDays(1)) return AppText.Get("ResetUnderDay");
+        if (remaining <= TimeSpan.Zero) return AppText.Get("ResetNow");
 
-        var days = (int)Math.Ceiling(remaining.TotalDays);
-        return AppText.Get(days == 1 ? "ResetOneDay" : "ResetDays", days);
+        var totalMinutes = Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
+        var days = totalMinutes / (24 * 60);
+        var hours = totalMinutes % (24 * 60) / 60;
+        var minutes = totalMinutes % 60;
+        if (days > 0) return hours > 0 ? $"{days}d {hours}h" : $"{days}d";
+        if (hours > 0) return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
+        return $"{minutes}m";
     }
 
     private static void ConfigureModelIconHost(ContentControl icon)
@@ -381,12 +402,25 @@ public sealed class UsageFlyoutWindow : Window
         _lineProgressLayer.Children.Add(_lineFill);
         _lineProgressLayer.Children.Add(_lineActivityShine);
 
+        _lineFiveHourMarker.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
+        _lineFiveHourMarker.BorderBrush = new SolidColorBrush(Color.FromRgb(20, 22, 27));
+        _lineFiveHourMarker.BorderThickness = new Thickness(1, 0, 1, 0);
+        _lineFiveHourMarker.CornerRadius = new CornerRadius(1);
+        _lineFiveHourMarker.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+        _lineFiveHourMarker.VerticalAlignment = VerticalAlignment.Stretch;
+        _lineFiveHourMarker.IsHitTestVisible = false;
+        _lineFiveHourMarker.Visibility = Visibility.Collapsed;
+
+        var layers = new Grid { ClipToBounds = true };
+        layers.Children.Add(_lineProgressLayer);
+        layers.Children.Add(_lineFiveHourMarker);
+
         var card = new Border
         {
             Background = Brushes.Transparent,
             CornerRadius = new CornerRadius(1.5),
             IsHitTestVisible = false,
-            Child = _lineProgressLayer
+            Child = layers
         };
         card.SizeChanged += (_, _) => UpdateLineFill();
         return card;
@@ -395,7 +429,23 @@ public sealed class UsageFlyoutWindow : Window
     private void UpdateLineFill()
     {
         if (_lineCard is null) return;
-        _lineProgressLayer.Width = Math.Max(0, _lineCard.ActualWidth * Math.Clamp(_availablePercent, 0, 100) / 100d);
+        var width = _lineCard.ActualWidth;
+        _lineProgressLayer.Width = Math.Max(0, width * Math.Clamp(_lineAvailablePercent, 0, 100) / 100d);
+
+        if (_fiveHourAvailablePercent is not { } fiveHourAvailable || width <= 0)
+        {
+            _lineFiveHourMarker.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var markerWidth = Math.Max(10d, _lineThickness * 3d);
+        _lineFiveHourMarker.Width = markerWidth;
+        _lineFiveHourMarker.Margin = new Thickness(
+            Math.Clamp(width * Math.Clamp(fiveHourAvailable, 0, 100) / 100d - markerWidth / 2d, 0, Math.Max(0, width - markerWidth)),
+            0,
+            0,
+            0);
+        _lineFiveHourMarker.Visibility = Visibility.Visible;
     }
 
     private static LinearGradientBrush CreateLineShineBrush() => new()

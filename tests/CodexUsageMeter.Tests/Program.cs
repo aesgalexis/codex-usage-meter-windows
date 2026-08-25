@@ -29,6 +29,10 @@ const string twoWindowsEvent = """
 var twoWindows = CodexRateLimitParser.Parse(twoWindowsEvent);
 Assert(twoWindows?.Windows.Count == 2, "Primary y secondary deben conservarse simultáneamente.");
 Assert(twoWindows?.WindowMinutes == 10080 && twoWindows.AvailablePercent == 30, "La ventana más restrictiva debe ser el indicador efectivo.");
+Assert(twoWindows?.WeeklyWindow.WindowMinutes == 10080 && twoWindows.WeeklyWindow.UsedPercent == 70,
+    "La barra semanal debe usar la ventana de siete días.");
+Assert(twoWindows?.FiveHourWindow?.WindowMinutes == 300 && twoWindows.FiveHourWindow.UsedPercent == 20,
+    "El marcador debe usar la ventana de cinco horas.");
 
 const string secondaryOnlyEvent = """
 {"timestamp":"2026-08-02T11:00:00Z","payload":{"rate_limits":{"primary":null,"secondary":{"used_percent":35,"window_minutes":300,"resets_at":1786200000}}}}

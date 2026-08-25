@@ -18,11 +18,11 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Shows the available and used Codex percentages in the Windows notification area.
 - Optionally shows a normal or compact usage card when you hover over or left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
-- Offers a compact pinned mode where the entire capsule is the available-usage bar with an integrated pin. Reset dots remain hidden until a reliable local reset-count source is available.
+- Offers a compact pinned mode where the entire capsule is the weekly available-usage bar, with an integrated pin and five-hour reset countdown.
 - Plays a subtle shine across the compact bar when it opens and on immediate local session writes.
-- Optionally shows a three-pixel usage bar across the screen above the taskbar, independent from the selected widget, with a brighter shine while Codex is working.
+- Optionally shows a three-pixel weekly usage bar across the screen above the taskbar, with a visible marker for the rolling five-hour limit and a brighter shine while Codex is working.
 - Shows a monochrome sun, moon or Earth symbol for detected Sol, Luna or Terra models in both widget sizes.
-- Displays how many days remain until the usage limit resets.
+- Displays separate weekly and five-hour reset countdowns.
 - Shows the locally reported credit balance beneath the reset countdown without assuming that credits represent resets.
 - Uses the same green, amber, or red status color in the tray icon and widget bar, based on the rounded available percentage.
 - Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
@@ -35,9 +35,9 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 
 ### Widget modes
 
-The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs can be shown temporarily or pinned and dragged anywhere on the desktop.
+The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs use the weekly limit for their percentage and progress, show the five-hour reset countdown, and can be shown temporarily or pinned and dragged anywhere on the desktop.
 
-The separate usage-bar option adds a non-interactive line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as availability falls, and can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
+The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
 
 ![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
 
@@ -100,7 +100,7 @@ UsageSnapshot
 Windows tray indicator
 ```
 
-The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows, identifies them by duration, and uses the most restrictive available window for the tray indicator while the normal widget lists every reported window. Temporary read failures retain the last valid value and mark it as stale.
+The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows and identifies them by duration. The tray indicator and notifications retain the effective most-restrictive window, while widget progress and the taskbar line use the weekly window and expose the rolling five-hour reset and marker separately. Temporary read failures retain the last valid value and mark it as stale.
 
 The reader is isolated behind an `IUsageProvider` interface so it can be replaced if OpenAI publishes a suitable supported API.
 

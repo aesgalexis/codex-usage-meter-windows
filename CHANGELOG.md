@@ -4,6 +4,19 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-08-25
+
+### Added
+
+- Marks the rolling five-hour limit with a high-contrast indicator on the usage line above the taskbar.
+- Shows the five-hour reset countdown in both normal and compact widgets.
+
+### Changed
+
+- Uses the weekly limit for the taskbar usage line and for the progress bars and percentages in both widgets.
+- Shows separate weekly and five-hour reset countdowns in the normal widget.
+- Detects five-hour windows even when their reported duration varies slightly from 300 minutes.
+
 ## [0.4.8] - 2026-08-21
 
 ### Fixed
