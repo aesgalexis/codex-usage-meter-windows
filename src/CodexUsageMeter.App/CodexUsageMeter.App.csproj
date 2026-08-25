@@ -13,10 +13,11 @@
     <Description>Windows tray app for viewing local Codex usage limits.</Description>
     <Authors>aesgalexis and contributors</Authors>
     <Copyright>Copyright © 2026 Codex Usage Meter contributors</Copyright>
-    <Version>0.6.0</Version>
+    <Version>0.6.1</Version>
     <RepositoryUrl>https://github.com/aesgalexis/codex-usage-meter-windows</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
+    <Resource Include="..\..\assets\app.ico" Link="Assets\app.ico" />
     <ProjectReference Include="..\CodexUsageMeter.Core\CodexUsageMeter.Core.csproj" />
     <ProjectReference Include="..\CodexUsageMeter.Infrastructure\CodexUsageMeter.Infrastructure.csproj" />
   </ItemGroup>

@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-08-25
+
+### Fixed
+
+- Prevents text in the About window from being clipped by sizing the window to its content, wrapping long labels and providing scrolling on smaller displays.
+- Uses the application's current icon as the logo and window icon in About.
+
 ## [0.6.0] - 2026-08-25
 
 ### Added

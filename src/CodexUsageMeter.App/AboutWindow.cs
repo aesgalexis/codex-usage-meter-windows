@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using Button = System.Windows.Controls.Button;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
@@ -23,19 +24,24 @@ public sealed class AboutWindow : Window
     public AboutWindow()
     {
         Title = AppText.Get("About");
-        Width = 470;
-        Height = 570;
+        Width = 500;
         MinWidth = Width;
-        MinHeight = Height;
         MaxWidth = Width;
-        MaxHeight = Height;
+        MaxHeight = Math.Max(480, SystemParameters.WorkArea.Height - 32);
+        SizeToContent = SizeToContent.Height;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ShowInTaskbar = true;
-        Content = BuildCard();
+        Icon = LoadApplicationIcon();
+        Content = new ScrollViewer
+        {
+            Content = BuildCard(),
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+        };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
     }
 
@@ -67,22 +73,14 @@ public sealed class AboutWindow : Window
         root.Children.Add(top);
 
         var hero = new StackPanel { Margin = new Thickness(0, 18, 0, 18) };
-        var icon = new Border
+        var icon = new System.Windows.Controls.Image
         {
             Width = 62,
             Height = 62,
-            CornerRadius = new CornerRadius(18),
-            Background = new LinearGradientBrush(Color.FromRgb(28, 194, 120), Color.FromRgb(11, 112, 83), 45),
-            Child = new TextBlock
-            {
-                Text = "C",
-                FontSize = 30,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            }
+            Source = LoadApplicationIcon(),
+            Stretch = Stretch.Uniform
         };
+        RenderOptions.SetBitmapScalingMode(icon, BitmapScalingMode.HighQuality);
         hero.Children.Add(icon);
         hero.Children.Add(new TextBlock
         {
@@ -96,7 +94,8 @@ public sealed class AboutWindow : Window
         {
             Text = AppText.Get("AboutTagline"),
             FontSize = 13,
-            Foreground = Brush("#B8BDC7")
+            Foreground = Brush("#B8BDC7"),
+            TextWrapping = TextWrapping.Wrap
         });
         hero.Children.Add(new Border
         {
@@ -133,7 +132,7 @@ public sealed class AboutWindow : Window
         Grid.SetRow(links, 3);
         root.Children.Add(links);
 
-        var powered = TextButton(AppText.Get("AboutPowered") + "  ↗");
+        var powered = TextButton(AppText.Get("AboutPowered") + " ↗");
         powered.Foreground = Brush("#7FE0B2");
         powered.FontWeight = FontWeights.SemiBold;
         powered.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
@@ -174,12 +173,19 @@ public sealed class AboutWindow : Window
 
     private static void AddLink(Grid grid, string text, string url, int column)
     {
-        var button = TextButton(text + "  ↗");
+        var button = TextButton(string.Empty);
+        button.Content = new TextBlock
+        {
+            Text = text + "\u00A0↗",
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
+        };
         button.Margin = new Thickness(column == 0 ? 0 : 4, 0, column == 2 ? 0 : 4, 0);
         button.Background = Brush("#2B2F37");
         button.BorderBrush = Brush("#444A55");
         button.BorderThickness = new Thickness(1);
         button.Padding = new Thickness(7, 8, 7, 8);
+        button.MinHeight = 48;
         button.Click += (_, _) => OpenUrl(url);
         Grid.SetColumn(button, column);
         grid.Children.Add(button);
@@ -214,6 +220,28 @@ public sealed class AboutWindow : Window
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         return (informational ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "development")
             .Split('+')[0];
+    }
+
+    private static ImageSource? LoadApplicationIcon()
+    {
+        try
+        {
+            var assemblyName = typeof(AboutWindow).Assembly.GetName().Name;
+            var resource = System.Windows.Application.GetResourceStream(
+                new Uri($"pack://application:,,,/{assemblyName};component/Assets/app.ico"));
+            if (resource is null) return null;
+            using (resource.Stream)
+            {
+                var decoder = BitmapDecoder.Create(resource.Stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                var frame = decoder.Frames.OrderByDescending(candidate => candidate.PixelWidth * candidate.PixelHeight).First();
+                frame.Freeze();
+                return frame;
+            }
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static void OpenUrl(string url)
