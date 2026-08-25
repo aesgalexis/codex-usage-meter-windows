@@ -12,19 +12,26 @@ public static class UsageNotificationEvaluator
             return null;
         }
 
-        if (options.NotifyOnReset && HasReset(previous, current))
+        var previousWindow = previous.WeeklyWindow;
+        var currentWindow = current.WeeklyWindow;
+        if (previousWindow.WindowMinutes != currentWindow.WindowMinutes)
+        {
+            return null;
+        }
+
+        if (options.NotifyOnReset && HasReset(previousWindow, currentWindow))
         {
             return new UsageNotification(UsageNotificationKind.LimitReset);
         }
 
-        var threshold = HighestCrossedThreshold(previous.UsedPercent, current.UsedPercent, options);
+        var threshold = HighestCrossedThreshold(previousWindow.UsedPercent, currentWindow.UsedPercent, options);
         if (threshold is not null)
         {
             return new UsageNotification(UsageNotificationKind.ThresholdReached, threshold);
         }
 
         if (options.NotifyOnPercentChange &&
-            (int)Math.Floor(previous.UsedPercent) != (int)Math.Floor(current.UsedPercent))
+            (int)Math.Floor(previousWindow.UsedPercent) != (int)Math.Floor(currentWindow.UsedPercent))
         {
             return new UsageNotification(UsageNotificationKind.PercentChanged);
         }
@@ -32,7 +39,7 @@ public static class UsageNotificationEvaluator
         return null;
     }
 
-    private static bool HasReset(UsageSnapshot previous, UsageSnapshot current) =>
+    private static bool HasReset(UsageWindow previous, UsageWindow current) =>
         previous.ResetsAt is { } previousReset &&
         current.ResetsAt is { } currentReset &&
         currentReset > previousReset &&

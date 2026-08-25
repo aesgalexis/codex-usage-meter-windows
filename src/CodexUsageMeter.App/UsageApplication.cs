@@ -347,14 +347,15 @@ public sealed class UsageApplication : System.Windows.Application
 
     private void UpdateUsageDisplay(UsageSnapshot snapshot, bool stale, string? staleReason = null)
     {
-        var available = (int)Math.Round(snapshot.AvailablePercent);
-        _statusItem.Text = AppText.Get("Available", available, snapshot.UsedPercent.ToString("0.#", AppText.Culture));
+        var weeklyWindow = snapshot.WeeklyWindow;
+        var available = (int)Math.Round(weeklyWindow.AvailablePercent);
+        _statusItem.Text = AppText.Get("Available", available, weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
         if (stale) _statusItem.Text += $" · {staleReason ?? AppText.Get("Stale")}";
-        _resetItem.Text = snapshot.ResetsAt is { } reset
+        _resetItem.Text = weeklyWindow.ResetsAt is { } reset
             ? AppText.Get("ResetAt", reset.ToLocalTime().ToString("g", AppText.Culture))
             : AppText.Get("NoReset");
         _notifyIcon.Text = TruncateTooltip($"Codex: {AppText.Get("AvailableText", available)}{(stale ? $" · {AppText.Get("Stale")}" : string.Empty)}");
-        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(snapshot.AvailablePercent));
+        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(weeklyWindow.AvailablePercent));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(snapshot, staleReason, stale);
     }
@@ -381,7 +382,8 @@ public sealed class UsageApplication : System.Windows.Application
             UsageNotificationKind.LimitReset => AppText.Get("LimitReset"),
             _ => AppText.Get("UsageChanged")
         };
-        _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", snapshot.AvailablePercent.ToString("0", AppText.Culture), snapshot.UsedPercent.ToString("0.#", AppText.Culture));
+        var weeklyWindow = snapshot.WeeklyWindow;
+        _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", weeklyWindow.AvailablePercent.ToString("0", AppText.Culture), weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
         _notifyIcon.ShowBalloonTip(5000);
     }
 
@@ -527,8 +529,9 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (_latest is { } snapshot)
         {
+            var weeklyWindow = snapshot.WeeklyWindow;
             _notifyIcon.BalloonTipTitle = AppText.Get("BalloonUsage");
-            _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", snapshot.AvailablePercent.ToString("0", AppText.Culture), snapshot.UsedPercent.ToString("0.#", AppText.Culture));
+            _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", weeklyWindow.AvailablePercent.ToString("0", AppText.Culture), weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
         }
         else
         {

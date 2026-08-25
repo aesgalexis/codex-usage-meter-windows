@@ -19,9 +19,9 @@ Assert(CodexRateLimitParser.Parse("{not-json") is null, "JSON inválido no debe 
 Assert(CodexRateLimitParser.Parse("{\"payload\":{}}") is null, "Un evento ajeno debe ignorarse.");
 Assert(AppText.CatalogsMatch(), "Los catálogos inglés y español deben contener las mismas claves.");
 AppText.SetLanguage(AppText.English);
-Assert(AppText.Get("AvailableText", 50) == "50% available", "El catálogo inglés debe formatear el widget.");
+Assert(AppText.Get("AvailableText", 50) == "50% weekly available", "El catálogo inglés debe identificar el límite semanal.");
 AppText.SetLanguage(AppText.Spanish);
-Assert(AppText.Get("AvailableText", 50) == "50% disponible", "El catálogo español debe formatear el widget.");
+Assert(AppText.Get("AvailableText", 50) == "50% semanal disponible", "El catálogo español debe identificar el límite semanal.");
 
 const string twoWindowsEvent = """
 {"timestamp":"2026-08-02T11:00:00Z","payload":{"rate_limits":{"primary":{"used_percent":20,"window_minutes":300,"resets_at":1786180607},"secondary":{"used_percent":70,"window_minutes":10080,"resets_at":1786200000},"credits":{"balance":"2"},"plan_type":"plus"}}}
@@ -152,6 +152,45 @@ var thresholdOptions = NotificationOptions.Default with
 var thresholdNotice = UsageNotificationEvaluator.Evaluate(first, crossed, thresholdOptions);
 Assert(thresholdNotice == new UsageNotification(UsageNotificationKind.ThresholdReached, 75), "Un salto debe avisar solo del umbral más alto cruzado.");
 Assert(UsageNotificationEvaluator.Evaluate(null, first, NotificationOptions.Default) is null, "El arranque no debe generar notificaciones.");
+
+var shortWindowCrossing = new UsageSnapshot(
+    49, observedAt.AddHours(1), 300, "plus", 0, observedAt,
+    [new UsageWindow(49, observedAt.AddHours(1), 300), new UsageWindow(20, observedAt.AddDays(5), 10080)]);
+var shortWindowCrossed = shortWindowCrossing with
+{
+    UsedPercent = 51,
+    ObservedAt = observedAt.AddMinutes(1),
+    RateLimitWindows =
+    [
+        new UsageWindow(51, observedAt.AddHours(1), 300),
+        new UsageWindow(20, observedAt.AddDays(5), 10080)
+    ]
+};
+Assert(UsageNotificationEvaluator.Evaluate(shortWindowCrossing, shortWindowCrossed, thresholdOptions) is null,
+    "Cruzar un umbral solo en la ventana de cinco horas no debe generar una notificación semanal.");
+var weeklyWindowCrossed = shortWindowCrossed with
+{
+    RateLimitWindows =
+    [
+        new UsageWindow(51, observedAt.AddHours(1), 300),
+        new UsageWindow(51, observedAt.AddDays(5), 10080)
+    ]
+};
+Assert(UsageNotificationEvaluator.Evaluate(shortWindowCrossed, weeklyWindowCrossed, thresholdOptions) ==
+       new UsageNotification(UsageNotificationKind.ThresholdReached, 50),
+    "Cruzar un umbral semanal debe generar la notificación correspondiente.");
+var shortWindowReset = shortWindowCrossed with
+{
+    UsedPercent = 2,
+    ObservedAt = observedAt.AddHours(1),
+    RateLimitWindows =
+    [
+        new UsageWindow(2, observedAt.AddHours(6), 300),
+        new UsageWindow(20, observedAt.AddDays(5), 10080)
+    ]
+};
+Assert(UsageNotificationEvaluator.Evaluate(shortWindowCrossed, shortWindowReset, NotificationOptions.Default) is null,
+    "El reinicio de la ventana de cinco horas no debe anunciarse como reinicio semanal.");
 
 var percentOptions = NotificationOptions.Default with
 {

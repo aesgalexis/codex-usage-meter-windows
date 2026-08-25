@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-08-25
+
+### Fixed
+
+- Evaluates percentage, threshold and reset notifications against the weekly limit instead of the rolling five-hour window.
+- Uses the weekly percentage consistently in the tray icon, tray menu, tooltips and usage balloons.
+- Labels weekly notification and tray values explicitly to avoid confusing them with the five-hour marker and countdown.
+
 ## [0.5.0] - 2026-08-25
 
 ### Added
