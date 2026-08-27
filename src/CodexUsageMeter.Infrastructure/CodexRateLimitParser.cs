@@ -34,8 +34,11 @@ public static class CodexRateLimitParser
             }
 
             var observedAt = ReadTimestamp(root, "timestamp") ?? DateTimeOffset.UtcNow;
-            var windows = new[] { "primary", "secondary" }
-                .Select(name => ReadWindow(rateLimits, name))
+            // Codex identifies the rolling window as primary and the weekly window as
+            // secondary. Some client versions omit window_minutes, so preserve that
+            // semantic identity instead of accidentally treating the first window as weekly.
+            var windows = new[] { (Name: "primary", DefaultMinutes: 5 * 60), (Name: "secondary", DefaultMinutes: 7 * 24 * 60) }
+                .Select(item => ReadWindow(rateLimits, item.Name, item.DefaultMinutes))
                 .Where(window => window is not null)
                 .Cast<UsageWindow>()
                 .OrderBy(window => window.WindowMinutes ?? int.MaxValue)
@@ -70,7 +73,7 @@ public static class CodexRateLimitParser
         }
     }
 
-    private static UsageWindow? ReadWindow(JsonElement rateLimits, string name)
+    private static UsageWindow? ReadWindow(JsonElement rateLimits, string name, int defaultMinutes)
     {
         if (!rateLimits.TryGetProperty(name, out var window) ||
             window.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ||
@@ -80,7 +83,7 @@ public static class CodexRateLimitParser
         return new UsageWindow(
             Math.Clamp(usedPercent, 0d, 100d),
             ReadUnixTimestamp(window, "resets_at"),
-            ReadInt(window, "window_minutes"));
+            ReadInt(window, "window_minutes") ?? defaultMinutes);
     }
 
     private static string? ReadString(JsonElement element, string property) =>

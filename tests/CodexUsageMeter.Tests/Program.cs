@@ -34,6 +34,15 @@ Assert(twoWindows?.WeeklyWindow.WindowMinutes == 10080 && twoWindows.WeeklyWindo
 Assert(twoWindows?.FiveHourWindow?.WindowMinutes == 300 && twoWindows.FiveHourWindow.UsedPercent == 20,
     "El marcador debe usar la ventana de cinco horas.");
 
+const string windowsWithoutDurationsEvent = """
+{"timestamp":"2026-08-02T11:00:00Z","payload":{"rate_limits":{"primary":{"used_percent":18,"resets_at":1786180607},"secondary":{"used_percent":64,"resets_at":1786200000}}}}
+""";
+var windowsWithoutDurations = CodexRateLimitParser.Parse(windowsWithoutDurationsEvent);
+Assert(windowsWithoutDurations?.FiveHourWindow?.UsedPercent == 18,
+    "Primary sin duración debe seguir identificándose como límite de cinco horas.");
+Assert(windowsWithoutDurations?.WeeklyWindow.UsedPercent == 64,
+    "Secondary sin duración debe seguir identificándose como límite semanal.");
+
 const string secondaryOnlyEvent = """
 {"timestamp":"2026-08-02T11:00:00Z","payload":{"rate_limits":{"primary":null,"secondary":{"used_percent":35,"window_minutes":300,"resets_at":1786200000}}}}
 """;
@@ -93,14 +102,16 @@ var defaultNotifications = NotificationOptions.Default;
 Assert(!defaultNotifications.NotifyOnPercentChange &&
        !defaultNotifications.NotifyAt50Percent &&
        !defaultNotifications.NotifyAt75Percent &&
-       !defaultNotifications.NotifyAt90Percent,
-    "Las notificaciones de porcentaje deben estar desactivadas por defecto.");
+       !defaultNotifications.NotifyAt90Percent &&
+       !defaultNotifications.NotifyOnReset,
+    "Todas las notificaciones automáticas deben estar desactivadas por defecto.");
 var newSettings = new AppSettings();
 Assert(!newSettings.NotifyOnPercentChange &&
        !newSettings.NotifyAt50Percent &&
        !newSettings.NotifyAt75Percent &&
-       !newSettings.NotifyAt90Percent,
-    "Una instalación nueva no debe activar notificaciones de porcentaje.");
+       !newSettings.NotifyAt90Percent &&
+       !newSettings.NotifyOnReset,
+    "Una instalación nueva no debe activar notificaciones automáticas.");
 var activityPath = Path.Combine(Path.GetTempPath(), $"codex-activity-{Guid.NewGuid():N}.jsonl");
 try
 {
@@ -130,6 +141,7 @@ finally
     File.Delete(activityPath);
 }
 Assert(newSettings.UsageBarThickness == 3, "La barra de uso debe usar 3 px por defecto.");
+Assert(newSettings.UsageBarEnabled, "La barra semanal debe estar visible por defecto.");
 Assert(newSettings.UsageBarDisplay == "auto", "La barra de uso debe elegir pantalla automáticamente por defecto.");
 Assert(UsageBarVisibilityPolicy.ShouldShow(taskbarVisible: true, foregroundWindowFullScreen: false),
     "La barra debe mostrarse cuando la barra de tareas está visible y ninguna aplicación a pantalla completa la cubre.");
@@ -212,7 +224,10 @@ var reset = crossed with
     ResetsAt = observedAt.AddHours(2),
     ObservedAt = observedAt.AddHours(1)
 };
-var resetNotice = UsageNotificationEvaluator.Evaluate(crossed, reset, NotificationOptions.Default);
+var resetNotice = UsageNotificationEvaluator.Evaluate(
+    crossed,
+    reset,
+    NotificationOptions.Default with { NotifyOnReset = true });
 Assert(resetNotice?.Kind == UsageNotificationKind.LimitReset, "El avance del reinicio con menor consumo debe detectarse.");
 
 var temporaryFailure = UsageResult.Failure("temporary", UsageFailureKind.ReadError);

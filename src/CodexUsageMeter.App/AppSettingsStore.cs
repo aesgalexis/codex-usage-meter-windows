@@ -20,9 +20,25 @@ public sealed class AppSettingsStore
     {
         try
         {
-            return File.Exists(_settingsPath)
-                ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_settingsPath)) ?? new AppSettings()
-                : new AppSettings();
+            if (!File.Exists(_settingsPath)) return new AppSettings();
+
+            var json = File.ReadAllText(_settingsPath);
+            var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty(nameof(AppSettings.SchemaVersion), out _))
+            {
+                // 0.6.x persisted noisy reset notifications and an invisible usage bar by
+                // default. Apply the corrected defaults once while retaining all other choices.
+                settings.NotifyOnPercentChange = false;
+                settings.NotifyAt50Percent = false;
+                settings.NotifyAt75Percent = false;
+                settings.NotifyAt90Percent = false;
+                settings.NotifyOnReset = false;
+                settings.UsageBarEnabled = true;
+                settings.UsageBarThickness = Math.Max(3, settings.UsageBarThickness);
+                settings.SchemaVersion = AppSettings.CurrentSchemaVersion;
+            }
+            return settings;
         }
         catch (IOException)
         {

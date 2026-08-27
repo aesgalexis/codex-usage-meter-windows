@@ -403,9 +403,8 @@ public sealed class UsageFlyoutWindow : Window
         _lineProgressLayer.Children.Add(_lineActivityShine);
 
         _lineFiveHourMarker.Background = new SolidColorBrush(Color.FromRgb(255, 255, 255));
-        _lineFiveHourMarker.BorderBrush = new SolidColorBrush(Color.FromRgb(20, 22, 27));
-        _lineFiveHourMarker.BorderThickness = new Thickness(1, 0, 1, 0);
-        _lineFiveHourMarker.CornerRadius = new CornerRadius(1);
+        _lineFiveHourMarker.BorderThickness = new Thickness(0);
+        _lineFiveHourMarker.CornerRadius = new CornerRadius(1.5);
         _lineFiveHourMarker.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
         _lineFiveHourMarker.VerticalAlignment = VerticalAlignment.Stretch;
         _lineFiveHourMarker.IsHitTestVisible = false;
@@ -438,7 +437,9 @@ public sealed class UsageFlyoutWindow : Window
             return;
         }
 
-        var markerWidth = Math.Max(10d, _lineThickness * 3d);
+        // Keep the five-hour indicator clearly visible even on a wide display. It is
+        // deliberately white and sits above the colored weekly progress layer.
+        var markerWidth = Math.Max(14d, _lineThickness * 4d);
         _lineFiveHourMarker.Width = markerWidth;
         _lineFiveHourMarker.Margin = new Thickness(
             Math.Clamp(width * Math.Clamp(fiveHourAvailable, 0, 100) / 100d - markerWidth / 2d, 0, Math.Max(0, width - markerWidth)),

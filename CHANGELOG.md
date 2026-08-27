@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Keeps primary and secondary rate-limit identities when Codex omits their durations, preventing the rolling five-hour value from being shown as weekly usage.
+- Enables the weekly taskbar bar by default and migrates existing 0.6.x settings so it is visible after upgrading.
+- Restores a visible 3 px taskbar line during migration and renders the five-hour marker as a wider solid-white rectangle.
+- Uses the rolling five-hour limit only for the white taskbar marker and tray icon; the colored taskbar progress remains weekly.
+- Disables automatic balloons by default and migrates older settings to the quieter notification policy.
+
 ## [0.6.1] - 2026-08-25
 
 ### Fixed

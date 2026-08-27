@@ -12,5 +12,5 @@ public sealed record NotificationOptions(
         NotifyAt50Percent: false,
         NotifyAt75Percent: false,
         NotifyAt90Percent: false,
-        NotifyOnReset: true);
+        NotifyOnReset: false);
 }
