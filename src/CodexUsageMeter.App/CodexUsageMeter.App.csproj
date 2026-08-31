@@ -13,7 +13,7 @@
     <Description>Windows tray app for viewing local Codex usage limits.</Description>
     <Authors>aesgalexis and contributors</Authors>
     <Copyright>Copyright © 2026 Codex Usage Meter contributors</Copyright>
-    <Version>0.6.2</Version>
+    <Version>0.6.3</Version>
     <RepositoryUrl>https://github.com/aesgalexis/codex-usage-meter-windows</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
