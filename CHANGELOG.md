@@ -4,6 +4,15 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- Ignores unrelated model-reserve rate limits so they cannot fill the weekly bar or remove the rolling five-hour marker.
+- Continues following long-running session files whose size changes while Windows leaves their last-write timestamp unchanged.
+- Replays a session-file refresh requested while another refresh is still running instead of delaying it until the periodic fallback.
+- Uses violet progress bars and a violet tray ring while an exhausted Codex window is consuming available credits.
+
 ## [0.6.2] - 2026-08-27
 
 ### Fixed

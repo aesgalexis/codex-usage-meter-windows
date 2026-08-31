@@ -168,12 +168,14 @@ public sealed class UsageFlyoutWindow : Window
         _credits.Text = stale ? $"{AppText.Get("Stale")}: {age} · {creditsText}" : $"{age} · {creditsText}";
         _credits.ToolTip = stale ? error : null;
         _progress.Value = weeklyWindow.AvailablePercent;
-        _progress.Foreground = new SolidColorBrush(available switch
-        {
-            >= 50 => Color.FromRgb(32, 180, 110),
-            >= 20 => Color.FromRgb(240, 170, 35),
-            _ => Color.FromRgb(220, 65, 70)
-        });
+        _progress.Foreground = new SolidColorBrush(snapshot.IsUsingCredits
+            ? Color.FromRgb(139, 92, 246)
+            : available switch
+            {
+                >= 50 => Color.FromRgb(32, 180, 110),
+                >= 20 => Color.FromRgb(240, 170, 35),
+                _ => Color.FromRgb(220, 65, 70)
+            });
         _availablePercent = weeklyWindow.AvailablePercent;
         _lineAvailablePercent = weeklyWindow.AvailablePercent;
         _fiveHourAvailablePercent = snapshot.FiveHourWindow?.AvailablePercent;

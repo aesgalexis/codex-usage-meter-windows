@@ -13,10 +13,13 @@ public sealed record UsageSnapshot(
     decimal? CreditBalance,
     DateTimeOffset ObservedAt,
     IReadOnlyList<UsageWindow>? RateLimitWindows = null,
-    string? ActiveModel = null)
+    string? ActiveModel = null,
+    bool HasCredits = false)
 {
     public double AvailablePercent => Math.Clamp(100d - UsedPercent, 0d, 100d);
     public IReadOnlyList<UsageWindow> Windows => RateLimitWindows ?? [new UsageWindow(UsedPercent, ResetsAt, WindowMinutes)];
+    public bool IsUsingCredits =>
+        HasCredits && CreditBalance is > 0m && Windows.Any(window => window.UsedPercent >= 100d);
     public UsageWindow? FiveHourWindow =>
         Windows.FirstOrDefault(window => window.WindowMinutes == 5 * 60) ??
         Windows.Where(window => window.WindowMinutes is >= 240 and <= 360)

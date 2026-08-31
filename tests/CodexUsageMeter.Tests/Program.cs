@@ -43,6 +43,40 @@ Assert(windowsWithoutDurations?.FiveHourWindow?.UsedPercent == 18,
 Assert(windowsWithoutDurations?.WeeklyWindow.UsedPercent == 64,
     "Secondary sin duración debe seguir identificándose como límite semanal.");
 
+const string reserveLimitEvent = """
+{"timestamp":"2026-08-02T11:01:00Z","payload":{"rate_limits":{"limit_id":"base_model_inference","limit_name":"gpt-reserve","primary":{"used_percent":0,"window_minutes":10080,"resets_at":1786200000},"secondary":null,"plan_type":"plus"}}}
+""";
+Assert(CodexRateLimitParser.Parse(reserveLimitEvent) is null,
+    "Un límite gpt-reserve no debe llenar la barra de Codex ni eliminar su marcador de cinco horas.");
+
+const string identifiedCodexEvent = """
+{"timestamp":"2026-08-02T11:02:00Z","payload":{"rate_limits":{"limit_id":"codex","primary":{"used_percent":21,"window_minutes":300,"resets_at":1786180607},"secondary":{"used_percent":4,"window_minutes":10080,"resets_at":1786200000},"plan_type":"plus"}}}
+""";
+Assert(CodexRateLimitParser.Parse(identifiedCodexEvent)?.FiveHourWindow?.UsedPercent == 21,
+    "Un límite identificado explícitamente como codex debe seguir aceptándose.");
+
+const string creditsInUseEvent = """
+{"timestamp":"2026-08-02T11:03:00Z","payload":{"rate_limits":{"limit_id":"codex","primary":{"used_percent":100,"window_minutes":300,"resets_at":1786180607},"secondary":{"used_percent":31,"window_minutes":10080,"resets_at":1786200000},"credits":{"has_credits":true,"unlimited":false,"balance":"42.50"},"plan_type":"plus"}}}
+""";
+var creditsInUse = CodexRateLimitParser.Parse(creditsInUseEvent);
+Assert(creditsInUse is not null, "El evento con créditos debe producir un resultado.");
+var creditSnapshot = creditsInUse!;
+Assert(creditSnapshot.HasCredits && creditSnapshot.CreditBalance == 42.50m,
+    "La disponibilidad y el saldo de créditos deben conservarse.");
+Assert(creditSnapshot.IsUsingCredits,
+    "Una ventana agotada con saldo de créditos debe activar el estado violeta.");
+var creditsNotYetInUse = creditSnapshot with
+{
+    UsedPercent = 99,
+    RateLimitWindows =
+    [
+        new UsageWindow(99, creditSnapshot.ResetsAt, 300),
+        new UsageWindow(31, creditSnapshot.WeeklyWindow.ResetsAt, 10080)
+    ]
+};
+Assert(!creditsNotYetInUse.IsUsingCredits,
+    "Tener créditos disponibles sin haber agotado una ventana no debe activar el estado violeta.");
+
 const string secondaryOnlyEvent = """
 {"timestamp":"2026-08-02T11:00:00Z","payload":{"rate_limits":{"primary":null,"secondary":{"used_percent":35,"window_minutes":300,"resets_at":1786200000}}}}
 """;
@@ -93,6 +127,35 @@ try
 finally
 {
     Directory.Delete(orderingRoot, recursive: true);
+}
+
+var trackedRoot = Path.Combine(Path.GetTempPath(), $"codex-usage-meter-tracked-{Guid.NewGuid():N}");
+var trackedSessions = Path.Combine(trackedRoot, "sessions");
+Directory.CreateDirectory(trackedSessions);
+try
+{
+    var trackedProvider = new CodexSessionUsageProvider(trackedRoot);
+    var longRunningSession = Path.Combine(trackedSessions, "long-running.jsonl");
+    await File.WriteAllTextAsync(longRunningSession, "{\"type\":\"unrelated\"}");
+    File.SetLastWriteTimeUtc(longRunningSession, DateTime.UtcNow.AddDays(-1));
+    for (var index = 0; index < 12; index++)
+    {
+        var decoy = Path.Combine(trackedSessions, $"recent-{index:00}.jsonl");
+        await File.WriteAllTextAsync(decoy, "{\"type\":\"unrelated\"}");
+        File.SetLastWriteTimeUtc(decoy, DateTime.UtcNow.AddMinutes(-index));
+    }
+
+    Assert(!(await trackedProvider.GetLatestAsync()).IsSuccess,
+        "La primera pasada solo debe inspeccionar el conjunto reciente acotado.");
+    await File.AppendAllTextAsync(longRunningSession, Environment.NewLine + identifiedCodexEvent);
+    File.SetLastWriteTimeUtc(longRunningSession, DateTime.UtcNow.AddDays(-1));
+    var trackedResult = await trackedProvider.GetLatestAsync();
+    Assert(trackedResult.Snapshot?.ObservedAt == DateTimeOffset.Parse("2026-08-02T11:02:00Z"),
+        "Una sesión larga que continúa creciendo debe inspeccionarse aunque LastWriteTime no avance.");
+}
+finally
+{
+    Directory.Delete(trackedRoot, recursive: true);
 }
 
 var observedAt = DateTimeOffset.Parse("2026-08-02T10:00:00Z");

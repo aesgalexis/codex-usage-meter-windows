@@ -48,6 +48,7 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly HashSet<string> _pendingActivityPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, bool> _activeTaskFiles = new(StringComparer.OrdinalIgnoreCase);
     private bool _isRefreshing;
+    private bool _refreshPending;
     private bool _latestIsStale;
     private UsageFailureKind _latestFailureKind;
     private DateTimeOffset _runtimeActivityUntil = DateTimeOffset.MinValue;
@@ -313,6 +314,7 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (_isRefreshing)
         {
+            _refreshPending = true;
             return;
         }
 
@@ -352,6 +354,11 @@ public sealed class UsageApplication : System.Windows.Application
             EnsureSessionWatcher();
             EnsureRuntimeActivityWatcher();
             _isRefreshing = false;
+            if (_refreshPending)
+            {
+                _refreshPending = false;
+                _ = Dispatcher.BeginInvoke(new Action(() => _ = RefreshAsync()));
+            }
         }
     }
 
@@ -369,7 +376,7 @@ public sealed class UsageApplication : System.Windows.Application
             "TrayTooltip",
             Math.Round(trayWindow.AvailablePercent),
             Math.Round(weeklyWindow.AvailablePercent)) + (stale ? $" · {AppText.Get("Stale")}" : string.Empty));
-        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(trayWindow.AvailablePercent));
+        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(trayWindow.AvailablePercent, snapshot.IsUsingCredits));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(snapshot, staleReason, stale);
     }
@@ -989,7 +996,7 @@ internal static class NativeWindowPositioning
 
 internal static class TrayIconFactory
 {
-    public static Icon Create(double? availablePercent)
+    public static Icon Create(double? availablePercent, bool isUsingCredits = false)
     {
         using var bitmap = new Bitmap(32, 32);
         using var graphics = Graphics.FromImage(bitmap);
@@ -999,20 +1006,26 @@ internal static class TrayIconFactory
         var roundedAvailable = availablePercent is { } available
             ? (int)Math.Round(available)
             : (int?)null;
-        var color = roundedAvailable switch
-        {
-            null => Color.FromArgb(120, 130, 140),
-            >= 50 => Color.FromArgb(32, 180, 110),
-            >= 20 => Color.FromArgb(240, 170, 35),
-            _ => Color.FromArgb(220, 65, 70)
-        };
+        var color = isUsingCredits
+            ? Color.FromArgb(139, 92, 246)
+            : roundedAvailable switch
+            {
+                null => Color.FromArgb(120, 130, 140),
+                >= 50 => Color.FromArgb(32, 180, 110),
+                >= 20 => Color.FromArgb(240, 170, 35),
+                _ => Color.FromArgb(220, 65, 70)
+            };
 
         using var background = new SolidBrush(Color.FromArgb(35, 38, 45));
         using var ring = new Pen(Color.FromArgb(75, 80, 90), 4f);
         using var progress = new Pen(color, 4f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round };
         graphics.FillEllipse(background, 2, 2, 28, 28);
         graphics.DrawEllipse(ring, 5, 5, 22, 22);
-        if (availablePercent is { } value)
+        if (isUsingCredits)
+        {
+            graphics.DrawArc(progress, 5, 5, 22, 22, -90f, 360f);
+        }
+        else if (availablePercent is { } value)
         {
             graphics.DrawArc(progress, 5, 5, 22, 22, -90f, (float)(360d * value / 100d));
         }

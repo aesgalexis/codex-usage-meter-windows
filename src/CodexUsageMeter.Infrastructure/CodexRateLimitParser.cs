@@ -33,6 +33,16 @@ public static class CodexRateLimitParser
                 return null;
             }
 
+            // A session may also report unrelated product/model limits (for example
+            // base_model_inference / gpt-reserve). Those snapshots do not describe
+            // Codex's rolling and weekly windows and must never replace them.
+            var limitId = ReadString(rateLimits, "limit_id");
+            if (!string.IsNullOrWhiteSpace(limitId) &&
+                !limitId.Equals("codex", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
             var observedAt = ReadTimestamp(root, "timestamp") ?? DateTimeOffset.UtcNow;
             // Codex identifies the rolling window as primary and the weekly window as
             // secondary. Some client versions omit window_minutes, so preserve that
@@ -48,9 +58,11 @@ public static class CodexRateLimitParser
             var effective = windows.OrderBy(window => window.AvailablePercent).First();
             var planType = ReadString(rateLimits, "plan_type");
             decimal? balance = null;
+            var hasCredits = false;
 
             if (rateLimits.TryGetProperty("credits", out var credits))
             {
+                hasCredits = ReadBool(credits, "has_credits") ?? false;
                 var balanceText = ReadString(credits, "balance");
                 if (decimal.TryParse(balanceText, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed))
                 {
@@ -65,7 +77,8 @@ public static class CodexRateLimitParser
                 planType,
                 balance,
                 observedAt,
-                windows);
+                windows,
+                HasCredits: hasCredits);
         }
         catch (JsonException)
         {
@@ -94,6 +107,12 @@ public static class CodexRateLimitParser
     private static int? ReadInt(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.TryGetInt32(out var result)
             ? result
+            : null;
+
+    private static bool? ReadBool(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) &&
+        value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
             : null;
 
     private static DateTimeOffset? ReadTimestamp(JsonElement element, string property) =>

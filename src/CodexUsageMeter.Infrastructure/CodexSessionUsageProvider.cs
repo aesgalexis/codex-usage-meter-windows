@@ -6,7 +6,13 @@ namespace CodexUsageMeter.Infrastructure;
 public sealed class CodexSessionUsageProvider : IUsageProvider
 {
     private const int TailBytes = 1024 * 1024;
+    private const int RecentFileCount = 10;
+    private const int TrackedFileCount = 64;
     private readonly string _sessionsDirectory;
+    private readonly object _fileTrackingLock = new();
+    private readonly Dictionary<string, long> _knownFileLengths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, long> _trackedFileActivity = new(StringComparer.OrdinalIgnoreCase);
+    private long _fileActivitySequence;
 
     public CodexSessionUsageProvider(string? codexHome = null)
     {
@@ -25,11 +31,25 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
         FileInfo[] files;
         try
         {
-            files = new DirectoryInfo(_sessionsDirectory)
-                .EnumerateFiles("*.jsonl", SearchOption.AllDirectories)
-                .OrderByDescending(file => file.LastWriteTimeUtc)
-                .Take(10)
-                .ToArray();
+            var observedFiles = new List<(FileInfo File, long Length)>();
+            foreach (var file in new DirectoryInfo(_sessionsDirectory)
+                         .EnumerateFiles("*.jsonl", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    observedFiles.Add((file, file.Length));
+                }
+                catch (IOException)
+                {
+                    // A session can disappear during enumeration. Ignore it for this pass.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Other readable sessions can still provide a current snapshot.
+                }
+            }
+
+            files = SelectCandidateFiles(observedFiles);
         }
         catch (IOException ex)
         {
@@ -53,6 +73,64 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
         if (latest is not null) return UsageResult.Success(latest);
 
         return UsageResult.Failure("No usage snapshots were found in Codex sessions.", UsageFailureKind.NoSnapshots);
+    }
+
+    private FileInfo[] SelectCandidateFiles(IReadOnlyList<(FileInfo File, long Length)> observedFiles)
+    {
+        lock (_fileTrackingLock)
+        {
+            var firstPass = _knownFileLengths.Count == 0;
+            var currentPaths = observedFiles
+                .Select(item => item.File.FullName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (file, length) in observedFiles)
+            {
+                if (!firstPass &&
+                    (!_knownFileLengths.TryGetValue(file.FullName, out var previousLength) || previousLength != length))
+                {
+                    _trackedFileActivity[file.FullName] = ++_fileActivitySequence;
+                }
+
+                _knownFileLengths[file.FullName] = length;
+            }
+
+            foreach (var missingPath in _knownFileLengths.Keys.Where(path => !currentPaths.Contains(path)).ToArray())
+            {
+                _knownFileLengths.Remove(missingPath);
+                _trackedFileActivity.Remove(missingPath);
+            }
+
+            var recent = observedFiles
+                .OrderByDescending(item => item.File.LastWriteTimeUtc)
+                .Take(RecentFileCount)
+                .ToArray();
+            foreach (var (file, _) in recent)
+            {
+                if (!_trackedFileActivity.ContainsKey(file.FullName))
+                {
+                    _trackedFileActivity[file.FullName] = ++_fileActivitySequence;
+                }
+            }
+
+            foreach (var path in _trackedFileActivity
+                         .OrderByDescending(item => item.Value)
+                         .Skip(TrackedFileCount)
+                         .Select(item => item.Key)
+                         .ToArray())
+            {
+                _trackedFileActivity.Remove(path);
+            }
+
+            var byPath = observedFiles.ToDictionary(item => item.File.FullName, StringComparer.OrdinalIgnoreCase);
+            return recent
+                .Concat(_trackedFileActivity.Keys
+                    .Where(byPath.ContainsKey)
+                    .Select(path => byPath[path]))
+                .Select(item => item.File)
+                .DistinctBy(file => file.FullName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
     }
 
     private static async Task<UsageSnapshot?> ReadLatestFromFileAsync(
