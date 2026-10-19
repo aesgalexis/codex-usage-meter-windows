@@ -4,6 +4,15 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.6] - 2026-10-19
+
+### Fixed
+
+- Converts native notification-icon rectangle edges into the correct icon size, preventing incorrect display selection and widget anchors on multi-monitor desktops.
+- Keeps display-change handling active after opening the widget and releases the subscription when the app exits.
+- Shows hover and restored pinned widgets without taking keyboard focus; explicit clicks can still activate them.
+- Skips malformed activity events without interrupting task-state updates or losing the last valid activity state.
+
 ## [0.6.5] - 2026-10-19
 
 ### Fixed

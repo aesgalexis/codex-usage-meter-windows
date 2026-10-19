@@ -617,7 +617,6 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (!_settings.WidgetEnabled) return;
         _flyoutCloseTimer.Stop();
-        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetMode(_settings.WidgetCompact, line: false);
@@ -634,10 +633,9 @@ public sealed class UsageApplication : System.Windows.Application
             PositionFlyoutAtTray();
         }
 
-        _flyout.Show();
+        _flyout.ShowWithActivation(activate);
         if (_flyout.IsCompact) _flyout.PlayShine(force: true);
         if (_flyout.IsPinned && !hasSavedPosition) SaveWidgetPosition();
-        if (activate) _flyout.Activate();
     }
 
     private void EnsureFlyout()
@@ -914,6 +912,7 @@ public sealed class UsageApplication : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _refreshTimer.Stop();
         _fileChangeTimer.Stop();
         _activityStateTimer.Stop();

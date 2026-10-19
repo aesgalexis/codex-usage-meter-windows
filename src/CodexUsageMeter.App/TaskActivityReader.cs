@@ -31,9 +31,13 @@ public static class TaskActivityReader
                 {
                     using var document = JsonDocument.Parse(lines[index].TrimEnd('\r'));
                     var root = document.RootElement;
-                    if (!root.TryGetProperty("type", out var type) || type.GetString() != "event_msg" ||
+                    if (root.ValueKind != JsonValueKind.Object ||
+                        !root.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
+                        type.GetString() != "event_msg" ||
                         !root.TryGetProperty("payload", out var payload) ||
-                        !payload.TryGetProperty("type", out var payloadType)) continue;
+                        payload.ValueKind != JsonValueKind.Object ||
+                        !payload.TryGetProperty("type", out var payloadType) ||
+                        payloadType.ValueKind != JsonValueKind.String) continue;
 
                     switch (payloadType.GetString())
                     {

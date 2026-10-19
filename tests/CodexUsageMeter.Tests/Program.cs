@@ -3,6 +3,7 @@ using CodexUsageMeter.Core;
 using CodexUsageMeter.App;
 using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
 
 const string validEvent = """
 {"timestamp":"2026-08-02T10:24:28.684Z","type":"event_msg","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":33.0,"window_minutes":10080,"resets_at":1786180607},"secondary":null,"credits":{"has_credits":false,"unlimited":false,"balance":"12.50"},"plan_type":"plus"}}}
@@ -227,6 +228,11 @@ try
     Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == true,
         "Una tarea reciente debe activar el brillo.");
     await File.AppendAllTextAsync(activityPath,
+        "null\n[]\n{\"type\":42}\n{\"type\":\"event_msg\",\"payload\":null}\n" +
+        "{\"type\":\"event_msg\",\"payload\":[]}\n{\"type\":\"event_msg\",\"payload\":{\"type\":42}}\n");
+    Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == true,
+        "Los eventos de actividad mal formados deben ignorarse sin perder el último inicio válido.");
+    await File.AppendAllTextAsync(activityPath,
         $"{{\"type\":\"event_msg\",\"payload\":{{\"type\":\"item_completed\",\"padding\":\"{new string('x', 180_000)}\"}}}}\n");
     Assert(await TaskActivityReader.ReadLatestAsync(activityPath, activityNow, TimeSpan.FromMinutes(10)) == true,
         "El inicio de una tarea larga debe seguir encontrándose más allá de los antiguos 128 KB.");
@@ -382,6 +388,24 @@ var replayedState = UsageStatePolicy.Resolve(crossed, UsageResult.Success(first)
 Assert(replayedState.Snapshot == crossed && replayedState.IsStale, "Un snapshot reproducido con timestamp antiguo no debe reemplazar el dato actual.");
 var agedState = UsageStatePolicy.Resolve(null, UsageResult.Success(first), observedAt.AddHours(1), TimeSpan.FromMinutes(30));
 Assert(agedState.Snapshot == first && agedState.IsStale, "Un snapshot válido pero antiguo debe indicar claramente su antigüedad.");
+
+// Exercise the native RECT layout with both positive and negative monitor coordinates.
+var iconRectMemory = Marshal.AllocHGlobal(16);
+try
+{
+    foreach (var nativeEdges in new[] { new[] { 1800, 1048, 1824, 1072 }, new[] { -1920, -1080, -1896, -1056 } })
+    {
+        for (var i = 0; i < nativeEdges.Length; i++) Marshal.WriteInt32(iconRectMemory, i * sizeof(int), nativeEdges[i]);
+        var iconBounds = Marshal.PtrToStructure<StableNotifyIcon.NativeIconRect>(iconRectMemory).ToRectangle();
+        Assert(iconBounds.Left == nativeEdges[0] && iconBounds.Top == nativeEdges[1] &&
+            iconBounds.Width == 24 && iconBounds.Height == 24,
+            "El RECT nativo debe convertir bordes absolutos a tamaño de icono, incluso en monitores negativos.");
+    }
+}
+finally
+{
+    Marshal.FreeHGlobal(iconRectMemory);
+}
 
 using (var trayIcon = new StableNotifyIcon())
 {

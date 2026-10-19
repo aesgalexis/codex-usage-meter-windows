@@ -42,6 +42,15 @@ internal static class UsageBarWindowChecks
                     throw new InvalidOperationException("El widget debe conservar su comportamiento interactivo.");
                 if ((GetWindowLong(new WindowInteropHelper(bar).Handle, -20) & 0x08000020) != 0)
                     throw new InvalidOperationException("El widget debe volver a recibir clics tras salir del modo línea.");
+                bar.ShowWithActivation(activate: false);
+                if (GetForegroundWindow() != foreground || bar.IsActive)
+                    throw new InvalidOperationException("Mostrar el widget por hover no debe robar el foco.");
+                bar.Hide();
+
+                using var trayIcon = new StableNotifyIcon { Icon = System.Drawing.SystemIcons.Application, Visible = true };
+                if (trayIcon.TryGetBounds(out var iconBounds) &&
+                    (iconBounds.Width <= 0 || iconBounds.Height <= 0 || iconBounds.Width > 256 || iconBounds.Height > 256))
+                    throw new InvalidOperationException($"Los límites del icono no tienen un tamaño de icono: {iconBounds}.");
             }
             catch (Exception exception)
             {

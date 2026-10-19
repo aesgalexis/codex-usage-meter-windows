@@ -95,7 +95,12 @@ public sealed class StableNotifyIcon : IDisposable
             Id = 1,
             GuidItem = TrayIconGuid
         };
-        return Shell_NotifyIconGetRect(ref identifier, out bounds) == 0;
+        bounds = Rectangle.Empty;
+        if (Shell_NotifyIconGetRect(ref identifier, out var nativeBounds) != 0) return false;
+        var rectangle = nativeBounds.ToRectangle();
+        if (rectangle.Width <= 0 || rectangle.Height <= 0) return false;
+        bounds = rectangle;
+        return true;
     }
 
     public Point GetPhysicalCursorPosition()
@@ -269,6 +274,17 @@ public sealed class StableNotifyIcon : IDisposable
         public Guid GuidItem;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NativeIconRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+
+        public readonly Rectangle ToRectangle() => Rectangle.FromLTRB(Left, Top, Right, Bottom);
+    }
+
     [Flags]
     private enum NotifyIconFlags : uint
     {
@@ -292,7 +308,7 @@ public sealed class StableNotifyIcon : IDisposable
     private static extern bool Shell_NotifyIcon(NotifyIconMessage message, ref NotifyIconData data);
 
     [DllImport("shell32.dll")]
-    private static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out Rectangle iconLocation);
+    private static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out NativeIconRect iconLocation);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern uint RegisterWindowMessage(string message);

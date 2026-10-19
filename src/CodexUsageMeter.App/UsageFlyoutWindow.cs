@@ -100,6 +100,13 @@ public sealed class UsageFlyoutWindow : Window
         if (IsLine) Dispatcher.BeginInvoke(UpdateLineFill);
     }
 
+    internal void ShowWithActivation(bool activate)
+    {
+        ShowActivated = activate && !IsLine;
+        Show();
+        if (ShowActivated) Activate();
+    }
+
     private void UpdateNativeInteraction()
     {
         var handle = new WindowInteropHelper(this).Handle;

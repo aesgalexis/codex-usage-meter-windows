@@ -36,7 +36,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 
 ### Widget modes
 
-The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs use the weekly limit for their percentage and progress, show the five-hour reset countdown, and can be shown temporarily or pinned and dragged anywhere on the desktop.
+The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs use the weekly limit for their percentage and progress, show the five-hour reset countdown, and can be shown temporarily or pinned and dragged anywhere on the desktop. Hovering over the tray icon shows the widget without taking keyboard focus.
 
 The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
 
