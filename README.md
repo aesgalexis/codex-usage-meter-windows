@@ -40,6 +40,8 @@ The optional widget can use a detailed normal card or a minimal compact usage ba
 
 The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
 
+The line stays above normal and maximized browser windows while the taskbar is visible, hides for full-screen videos and applications on its display, and reappears without taking keyboard focus.
+
 ![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
 
 | Normal | Compact |
@@ -56,20 +58,22 @@ The tray menu and usage displays support English and Spanish, with immediate swi
 
 ### Portable release
 
-Download `CodexUsageMeter-Setup-win-x64.exe` from [Releases](https://github.com/aesgalexis/codex-usage-meter-windows/releases) and run it. The installer works per user, does not require administrator privileges, and keeps a stable location for future upgrades.
+Download the [latest Windows installer](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-Setup-win-x64.exe) and run it. The installer works per user, does not require administrator privileges, and keeps a stable location for future upgrades.
 
-The portable `CodexUsageMeter-win-x64.zip` remains available for users who prefer not to install the app.
+The [portable ZIP](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-win-x64.zip) remains available for users who prefer not to install the app.
 
 Published builds are self-contained: the destination PC does not need the .NET runtime installed.
 
 ### WinGet
 
-The package is being prepared for the Windows Package Manager community catalog. Once Microsoft accepts the submission, installation and upgrades will use:
+The app is available in the Windows Package Manager community catalog. Installation and upgrades use:
 
 ```powershell
 winget install --id aesgalexis.CodexUsageMeter --exact
 winget upgrade --id aesgalexis.CodexUsageMeter --exact
 ```
+
+New releases appear in WinGet after the catalog update is accepted; the GitHub downloads are available immediately.
 
 Interactive installer builds offer English and Spanish. Portable and silent WinGet installations use the Windows display language on first run. The language can always be changed later from the tray menu and is preserved across upgrades.
 
