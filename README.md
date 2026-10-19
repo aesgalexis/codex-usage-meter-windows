@@ -146,6 +146,8 @@ dotnet build .\CodexUsageMeter.sln --configuration Release
 dotnet run --project .\tests\CodexUsageMeter.Tests\CodexUsageMeter.Tests.csproj --configuration Release
 ```
 
+On an interactive Windows desktop, add `-- --window-checks` to the test command to also verify that hiding and showing the usage line preserves the active window.
+
 Create a self-contained portable build:
 
 ```powershell

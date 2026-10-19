@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Keeps the taskbar usage line above normal browser windows without activating it when it reappears.
+- Distinguishes framed, maximized browsers from borderless full-screen videos, including when the Windows taskbar auto-hides.
+- Checks the top application on each display so full-screen videos keep the usage line hidden when focus moves to another monitor; ignores minimized windows and windows on inactive virtual desktops.
+
 ## [0.6.3] - 2026-08-31
 
 ### Fixed

@@ -787,6 +787,7 @@ public sealed class UsageApplication : System.Windows.Application
 
         PositionLineAboveTaskbar(usageBar, screen);
         if (!usageBar.IsVisible) usageBar.Show();
+        NativeWindowPositioning.KeepUsageBarOnTop(usageBar);
     }
 
     private Forms.Screen[] ResolveUsageBarScreens()
@@ -935,8 +936,17 @@ internal static class NativeWindowPositioning
 {
     private const uint MonitorDefaultToNearest = 2;
     private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoMove = 0x0002;
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpNoOwnerZOrder = 0x0200;
+
+    public static void KeepUsageBarOnTop(Window window)
+    {
+        var handle = new WindowInteropHelper(window).EnsureHandle();
+        SetWindowPos(handle, new IntPtr(-1), 0, 0, 0, 0,
+            SwpNoMove | SwpNoSize | SwpNoActivate | SwpNoOwnerZOrder);
+    }
 
     public static void PositionFlyout(Window window, Rectangle anchor, Rectangle workingArea, double marginDip)
     {

@@ -2,6 +2,7 @@ using CodexUsageMeter.Infrastructure;
 using CodexUsageMeter.Core;
 using CodexUsageMeter.App;
 using System.Drawing;
+using System.IO;
 
 const string validEvent = """
 {"timestamp":"2026-08-02T10:24:28.684Z","type":"event_msg","payload":{"type":"token_count","rate_limits":{"primary":{"used_percent":33.0,"window_minutes":10080,"resets_at":1786180607},"secondary":null,"credits":{"has_credits":false,"unlimited":false,"balance":"12.50"},"plan_type":"plus"}}}
@@ -222,6 +223,21 @@ Assert(!UsageBarVisibilityPolicy.IsFullScreen(Rectangle.FromLTRB(0, 0, 1920, 104
     "Una ventana maximizada que respeta la barra de tareas no debe tratarse como pantalla completa.");
 Assert(UsageBarVisibilityPolicy.IsFullScreen(Rectangle.FromLTRB(0, 0, 1920, 1080), screenBounds),
     "Una ventana que cubre también la zona de la barra de tareas debe tratarse como pantalla completa.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreen(screenBounds, screenBounds, isMaximized: true, hasWindowFrame: true),
+    "Un navegador maximizado con marco no es pantalla completa aunque el autoocultado le permita ocupar todo el monitor.");
+Assert(UsageBarVisibilityPolicy.IsFullScreen(screenBounds, screenBounds, isMaximized: true, hasWindowFrame: false),
+    "Un vídeo sin marco debe reconocerse como pantalla completa aunque conserve el estado maximizado.");
+Assert(UsageBarVisibilityPolicy.IsFullScreen(screenBounds, screenBounds, isMaximized: false, hasWindowFrame: true),
+    "Una aplicación que cubre todo el monitor sin estar maximizada debe seguir ocultando la barra.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreen(Rectangle.Empty, Rectangle.Empty),
+    "Los rectángulos vacíos no deben detectarse como pantalla completa.");
+var secondaryScreen = Rectangle.FromLTRB(-2560, -360, 0, 1080);
+Assert(UsageBarVisibilityPolicy.IsFullScreen(secondaryScreen, secondaryScreen),
+    "La pantalla completa debe detectarse también en monitores con coordenadas negativas.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreen(screenBounds, secondaryScreen),
+    "Un vídeo a pantalla completa en otro monitor no debe ocultar esta barra.");
+Assert(UsageBarVisibilityPolicy.IsFullScreen(Rectangle.FromLTRB(-2560, -360, 1920, 1080), secondaryScreen),
+    "Una aplicación a pantalla completa que abarca varios monitores debe ocultar sus barras.");
 var thresholdOptions = NotificationOptions.Default with
 {
     NotifyAt50Percent = true,
@@ -309,6 +325,7 @@ using (var trayIcon = new StableNotifyIcon())
     trayIcon.Visible = false;
 }
 
+if (args.Contains("--window-checks")) UsageBarWindowChecks.Run();
 Console.WriteLine("Todas las pruebas han pasado.");
 return;
 

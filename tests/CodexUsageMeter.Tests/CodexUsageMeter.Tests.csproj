@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CodexUsageMeter.Core\CodexUsageMeter.Core.csproj" />

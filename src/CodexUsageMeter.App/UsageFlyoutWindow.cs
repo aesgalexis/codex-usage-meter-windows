@@ -86,6 +86,8 @@ public sealed class UsageFlyoutWindow : Window
         Height = IsLine ? _lineThickness : IsCompact ? 40 : 154;
         Content = IsLine ? _lineCard : IsCompact ? _compactCard : _card;
         IsHitTestVisible = !IsLine;
+        ShowActivated = !IsLine;
+        Focusable = !IsLine;
         if (IsCompact) Dispatcher.BeginInvoke(UpdateCompactFill);
         if (IsLine) Dispatcher.BeginInvoke(UpdateLineFill);
     }
