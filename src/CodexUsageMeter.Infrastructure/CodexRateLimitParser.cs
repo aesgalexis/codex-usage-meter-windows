@@ -12,11 +12,11 @@ public static class CodexRateLimitParser
         {
             using var document = JsonDocument.Parse(jsonLine);
             var root = document.RootElement;
-            if (!root.TryGetProperty("type", out var type) || type.GetString() != "turn_context" ||
-                !root.TryGetProperty("payload", out var payload) ||
-                !payload.TryGetProperty("model", out var model) || model.ValueKind != JsonValueKind.String ||
-                string.IsNullOrWhiteSpace(model.GetString())) return null;
-            return (model.GetString()!, ReadTimestamp(root, "timestamp") ?? DateTimeOffset.MinValue);
+            if (ReadString(root, "type") != "turn_context" ||
+                !TryGetProperty(root, "payload", out var payload)) return null;
+            var model = ReadString(payload, "model");
+            if (string.IsNullOrWhiteSpace(model)) return null;
+            return (model, ReadTimestamp(root, "timestamp") ?? DateTimeOffset.MinValue);
         }
         catch (JsonException) { return null; }
     }
@@ -27,8 +27,9 @@ public static class CodexRateLimitParser
         {
             using var document = JsonDocument.Parse(jsonLine);
             var root = document.RootElement;
-            if (!root.TryGetProperty("payload", out var payload) ||
-                !payload.TryGetProperty("rate_limits", out var rateLimits))
+            if (!TryGetProperty(root, "payload", out var payload) ||
+                !TryGetProperty(payload, "rate_limits", out var rateLimits) ||
+                rateLimits.ValueKind != JsonValueKind.Object)
             {
                 return null;
             }
@@ -60,7 +61,7 @@ public static class CodexRateLimitParser
             decimal? balance = null;
             var hasCredits = false;
 
-            if (rateLimits.TryGetProperty("credits", out var credits))
+            if (TryGetProperty(rateLimits, "credits", out var credits))
             {
                 hasCredits = ReadBool(credits, "has_credits") ?? false;
                 var balanceText = ReadString(credits, "balance");
@@ -88,42 +89,53 @@ public static class CodexRateLimitParser
 
     private static UsageWindow? ReadWindow(JsonElement rateLimits, string name, int defaultMinutes)
     {
-        if (!rateLimits.TryGetProperty(name, out var window) ||
-            window.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined ||
-            !window.TryGetProperty("used_percent", out var usedElement) ||
-            !usedElement.TryGetDouble(out var usedPercent)) return null;
+        if (!TryGetProperty(rateLimits, name, out var window) ||
+            !TryGetProperty(window, "used_percent", out var usedElement) ||
+            usedElement.ValueKind != JsonValueKind.Number ||
+            !usedElement.TryGetDouble(out var usedPercent) || !double.IsFinite(usedPercent)) return null;
 
+        var minutes = ReadInt(window, "window_minutes");
         return new UsageWindow(
             Math.Clamp(usedPercent, 0d, 100d),
             ReadUnixTimestamp(window, "resets_at"),
-            ReadInt(window, "window_minutes") ?? defaultMinutes);
+            minutes is > 0 ? minutes.Value : defaultMinutes);
+    }
+
+    private static bool TryGetProperty(JsonElement element, string property, out JsonElement value)
+    {
+        value = default;
+        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(property, out value);
     }
 
     private static string? ReadString(JsonElement element, string property) =>
-        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+        TryGetProperty(element, property, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 
     private static int? ReadInt(JsonElement element, string property) =>
-        element.TryGetProperty(property, out var value) && value.TryGetInt32(out var result)
+        TryGetProperty(element, property, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var result)
             ? result
             : null;
 
     private static bool? ReadBool(JsonElement element, string property) =>
-        element.TryGetProperty(property, out var value) &&
+        TryGetProperty(element, property, out var value) &&
         value.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? value.GetBoolean()
             : null;
 
     private static DateTimeOffset? ReadTimestamp(JsonElement element, string property) =>
-        element.TryGetProperty(property, out var value) &&
+        TryGetProperty(element, property, out var value) &&
         value.ValueKind == JsonValueKind.String &&
         DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var result)
             ? result
             : null;
 
     private static DateTimeOffset? ReadUnixTimestamp(JsonElement element, string property) =>
-        element.TryGetProperty(property, out var value) && value.TryGetInt64(out var seconds)
+        TryGetProperty(element, property, out var value) &&
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var seconds) &&
+        seconds >= DateTimeOffset.MinValue.ToUnixTimeSeconds() &&
+        seconds <= DateTimeOffset.MaxValue.ToUnixTimeSeconds()
             ? DateTimeOffset.FromUnixTimeSeconds(seconds)
             : null;
 }

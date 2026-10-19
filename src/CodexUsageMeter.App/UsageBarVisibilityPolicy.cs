@@ -27,7 +27,52 @@ public static class UsageBarVisibilityPolicy
         windowBounds.Top <= screenBounds.Top &&
         windowBounds.Right >= screenBounds.Right &&
         windowBounds.Bottom >= screenBounds.Bottom;
+
+    internal static bool IsFullScreenVisible(
+        IEnumerable<UsageBarWindowState> windowsInZOrder,
+        Rectangle screenBounds,
+        Rectangle workingArea)
+    {
+        var visibleArea = Rectangle.Intersect(screenBounds, workingArea);
+        if (visibleArea.Width <= 0 || visibleArea.Height <= 0) return false;
+        var uncovered = new List<Rectangle> { visibleArea };
+        foreach (var window in windowsInZOrder)
+        {
+            if (!window.IsDesktop && IsFullScreen(window.Bounds, screenBounds, window.IsMaximized, window.HasWindowFrame))
+                return true;
+
+            // A small dialog must not hide the full-screen video behind it from
+            // detection. Stop only once windows above it cover the entire work area.
+            uncovered = uncovered.SelectMany(region => Subtract(region, window.Bounds)).ToList();
+            if (uncovered.Count == 0) return false;
+        }
+        return false;
+    }
+
+    private static IEnumerable<Rectangle> Subtract(Rectangle region, Rectangle coveringWindow)
+    {
+        var overlap = Rectangle.Intersect(region, coveringWindow);
+        if (overlap.Width <= 0 || overlap.Height <= 0)
+        {
+            yield return region;
+            yield break;
+        }
+        if (overlap.Top > region.Top)
+            yield return Rectangle.FromLTRB(region.Left, region.Top, region.Right, overlap.Top);
+        if (overlap.Bottom < region.Bottom)
+            yield return Rectangle.FromLTRB(region.Left, overlap.Bottom, region.Right, region.Bottom);
+        if (overlap.Left > region.Left)
+            yield return Rectangle.FromLTRB(region.Left, overlap.Top, overlap.Left, overlap.Bottom);
+        if (overlap.Right < region.Right)
+            yield return Rectangle.FromLTRB(overlap.Right, overlap.Top, region.Right, overlap.Bottom);
+    }
 }
+
+internal readonly record struct UsageBarWindowState(
+    Rectangle Bounds,
+    bool IsMaximized = false,
+    bool HasWindowFrame = false,
+    bool IsDesktop = false);
 
 internal static class NativeTaskbarState
 {
@@ -67,31 +112,28 @@ internal static class NativeTaskbarState
 
     private static bool IsTopWindowFullScreenOn(Forms.Screen screen)
     {
-        var fullScreen = false;
-        // Inspect the top application on this display, even when keyboard focus is
-        // on another monitor or temporarily belongs to our tray menu/widget.
+        var windows = new List<UsageBarWindowState>();
+        // Capture visible windows in stacking order, including overlays and the
+        // desktop. Focus may be on a different monitor or our own tray menu.
         EnumWindows((window, _) =>
         {
-            if (!IsWindowVisible(window) || IsIconic(window) || IsDesktopWindow(window) ||
+            if (!IsWindowVisible(window) || IsIconic(window) ||
                 IsTaskbarWindow(window) || IsWindowCloaked(window)) return true;
 
             GetWindowThreadProcessId(window, out var processId);
             if (processId == (uint)Environment.ProcessId) return true;
+            var isDesktop = IsDesktopWindow(window);
             var extendedStyle = GetWindowLong(window, ExtendedWindowStyleIndex);
-            if ((extendedStyle & (ToolWindowStyle | NoActivateStyle)) != 0) return true;
-
+            if (!isDesktop && (extendedStyle & (ToolWindowStyle | NoActivateStyle)) != 0) return true;
             var style = GetWindowLong(window, WindowStyleIndex);
             var hasWindowFrame = (style & (CaptionStyle | ThickFrameStyle)) != 0;
             if (!TryGetVisibleWindowRect(window, hasWindowFrame, out var bounds)) return true;
             if (!bounds.IntersectsWith(screen.Bounds)) return true;
 
-            fullScreen = UsageBarVisibilityPolicy.IsFullScreen(bounds, screen.Bounds, IsZoomed(window), hasWindowFrame);
-            // A full-screen window may span monitors. A normal window on another
-            // display must not mask this display's full-screen application.
-            return !fullScreen && !Forms.Screen.FromHandle(window).DeviceName.Equals(
-                screen.DeviceName, StringComparison.OrdinalIgnoreCase);
+            windows.Add(new UsageBarWindowState(bounds, IsZoomed(window), hasWindowFrame, isDesktop));
+            return true;
         }, IntPtr.Zero);
-        return fullScreen;
+        return UsageBarVisibilityPolicy.IsFullScreenVisible(windows, screen.Bounds, screen.WorkingArea);
     }
 
     private static bool TryGetVisibleWindowRect(IntPtr window, bool hasWindowFrame, out Rectangle bounds)

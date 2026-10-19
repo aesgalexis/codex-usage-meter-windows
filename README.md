@@ -40,7 +40,7 @@ The optional widget can use a detailed normal card or a minimal compact usage ba
 
 The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
 
-The line stays above normal and maximized browser windows while the taskbar is visible, hides for full-screen videos and applications on its display, and reappears without taking keyboard focus.
+The line stays above normal and maximized browser windows while the taskbar is visible, hides for full-screen videos and applications on its display, and reappears without taking keyboard focus. Mouse clicks pass through to the application beneath it. A small window over a still-visible full-screen video keeps the line hidden; normal windows that fully cover the video allow it to reappear.
 
 ![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
 
@@ -150,7 +150,7 @@ dotnet build .\CodexUsageMeter.sln --configuration Release
 dotnet run --project .\tests\CodexUsageMeter.Tests\CodexUsageMeter.Tests.csproj --configuration Release
 ```
 
-On an interactive Windows desktop, add `-- --window-checks` to the test command to also verify that hiding and showing the usage line preserves the active window.
+On an interactive Windows desktop, add `-- --window-checks` to the test command to also verify that hiding and showing the usage line preserves the active window, passes mouse input through, and prevents mouse activation.
 
 Create a self-contained portable build:
 

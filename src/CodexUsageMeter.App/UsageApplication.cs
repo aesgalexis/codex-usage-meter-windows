@@ -802,7 +802,7 @@ public sealed class UsageApplication : System.Windows.Application
         var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
             ? bounds
             : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
-        return [Forms.Screen.PrimaryScreen ?? Forms.Screen.FromRectangle(iconBounds)];
+        return [Forms.Screen.FromRectangle(iconBounds)];
     }
 
     private void CloseUsageBars()

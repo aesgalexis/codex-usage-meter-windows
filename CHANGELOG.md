@@ -4,6 +4,16 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.5] - 2026-10-19
+
+### Fixed
+
+- Keeps the usage line hidden when a small foreground window overlaps a still-visible full-screen video, while allowing it above normal windows that fully cover the video.
+- Makes the usage line pass mouse clicks to the application beneath it and prevents native mouse activation.
+- Selects the notification-area display in automatic mode instead of always selecting the primary monitor.
+- Ignores malformed JSON event structures, invalid numeric types, non-finite percentages and out-of-range reset timestamps without interrupting usage updates.
+- Recovers safely from a null settings document or null display preference without preventing startup.
+
 ## [0.6.4] - 2026-10-19
 
 ### Fixed

@@ -18,6 +18,29 @@ Assert(snapshot.CreditBalance == 12.50m, "El saldo debe leerse con formato invar
 Assert(snapshot.Windows.Count == 1 && snapshot.Windows[0].WindowMinutes == 10080, "La ventana primary debe conservar su duración.");
 Assert(CodexRateLimitParser.Parse("{not-json") is null, "JSON inválido no debe lanzar una excepción.");
 Assert(CodexRateLimitParser.Parse("{\"payload\":{}}") is null, "Un evento ajeno debe ignorarse.");
+foreach (var malformedEvent in new[]
+{
+    "null", "[]", "42", "{\"payload\":null}", "{\"payload\":[]}",
+    "{\"payload\":{\"rate_limits\":false}}",
+    "{\"payload\":{\"rate_limits\":{\"primary\":42}}}",
+    "{\"payload\":{\"rate_limits\":{\"primary\":{\"used_percent\":\"wrong\"}}}}",
+    "{\"payload\":{\"rate_limits\":{\"primary\":{\"used_percent\":1e999}}}}"
+})
+{
+    Assert(CodexRateLimitParser.Parse(malformedEvent) is null,
+        "Los eventos con estructuras o porcentajes inválidos deben ignorarse sin interrumpir la aplicación.");
+    Assert(CodexRateLimitParser.ParseModel(malformedEvent) is null,
+        "El lector de modelos debe ignorar cualquier estructura de evento inesperada.");
+}
+var malformedOptionalFields = validEvent.Replace("1786180607", "9223372036854775807")
+    .Replace("10080", "\"wrong\"")
+    .Replace("\"credits\":{\"has_credits\":false,\"unlimited\":false,\"balance\":\"12.50\"}", "\"credits\":[]");
+Assert(CodexRateLimitParser.Parse(malformedOptionalFields) is { ResetsAt: null, CreditBalance: null },
+    "Los datos opcionales inválidos no deben descartar un porcentaje válido ni provocar una excepción.");
+Assert(CodexRateLimitParser.ParseModel("{\"type\":42}") is null,
+    "Un tipo de evento no textual debe ignorarse al buscar el modelo.");
+Assert(CodexRateLimitParser.Parse(validEvent.Replace("10080", "-1"))?.FiveHourWindow is not null,
+    "Una duración negativa debe recuperar la identidad de primary en vez de crear una ventana inválida.");
 Assert(AppText.CatalogsMatch(), "Los catálogos inglés y español deben contener las mismas claves.");
 AppText.SetLanguage(AppText.English);
 Assert(AppText.Get("AvailableText", 50) == "50% weekly available", "El catálogo inglés debe identificar el límite semanal.");
@@ -170,6 +193,26 @@ Assert(!defaultNotifications.NotifyOnPercentChange &&
        !defaultNotifications.NotifyOnReset,
     "Todas las notificaciones automáticas deben estar desactivadas por defecto.");
 var newSettings = new AppSettings();
+var settingsTestPath = Path.Combine(Path.GetTempPath(), $"codex-settings-{Guid.NewGuid():N}.json");
+try
+{
+    var settingsStore = new AppSettingsStore(settingsTestPath);
+    foreach (var invalidSettings in new[] { "null", "[]", "42", "{broken" })
+    {
+        await File.WriteAllTextAsync(settingsTestPath, invalidSettings);
+        Assert(settingsStore.Load().UsageBarDisplay == "auto",
+            "Una configuración inválida debe recuperar valores por defecto sin impedir el arranque.");
+    }
+    await File.WriteAllTextAsync(settingsTestPath,
+        "{\"SchemaVersion\":1,\"UsageBarDisplay\":null,\"UsageBarEnabled\":false}");
+    var recoveredSettings = settingsStore.Load();
+    Assert(recoveredSettings.UsageBarDisplay == "auto" && !recoveredSettings.UsageBarEnabled,
+        "Una pantalla nula debe recuperarse sin sobrescribir las demás preferencias del usuario.");
+}
+finally
+{
+    File.Delete(settingsTestPath);
+}
 Assert(!newSettings.NotifyOnPercentChange &&
        !newSettings.NotifyAt50Percent &&
        !newSettings.NotifyAt75Percent &&
@@ -238,6 +281,29 @@ Assert(!UsageBarVisibilityPolicy.IsFullScreen(screenBounds, secondaryScreen),
     "Un vídeo a pantalla completa en otro monitor no debe ocultar esta barra.");
 Assert(UsageBarVisibilityPolicy.IsFullScreen(Rectangle.FromLTRB(-2560, -360, 1920, 1080), secondaryScreen),
     "Una aplicación a pantalla completa que abarca varios monitores debe ocultar sus barras.");
+var workingArea = Rectangle.FromLTRB(0, 0, 1920, 1040);
+var fullScreenVideo = new UsageBarWindowState(screenBounds);
+var smallOverlay = new UsageBarWindowState(Rectangle.FromLTRB(100, 100, 500, 400), HasWindowFrame: true);
+Assert(UsageBarVisibilityPolicy.IsFullScreenVisible([smallOverlay, fullScreenVideo], screenBounds, workingArea),
+    "Una ventana pequeña sobre un vídeo no debe hacer reaparecer la barra encima del vídeo.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreenVisible(
+    [new(workingArea, IsMaximized: true, HasWindowFrame: true), fullScreenVideo], screenBounds, workingArea),
+    "Un navegador maximizado que tapa por completo el vídeo debe permitir mostrar la barra.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreenVisible(
+    [new(Rectangle.FromLTRB(0, 0, 960, 1040), HasWindowFrame: true),
+     new(Rectangle.FromLTRB(960, 0, 1920, 1040), HasWindowFrame: true), fullScreenVideo], screenBounds, workingArea),
+    "Dos ventanas ajustadas que tapan juntas el vídeo deben permitir mostrar la barra.");
+Assert(UsageBarVisibilityPolicy.IsFullScreenVisible(
+    [new(secondaryScreen), smallOverlay, fullScreenVideo], screenBounds, workingArea),
+    "Las ventanas de otro monitor no deben interferir en la detección de este monitor.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreenVisible(
+    [new(screenBounds, IsDesktop: true), fullScreenVideo], screenBounds, workingArea),
+    "Mostrar el escritorio debe permitir ver la barra aunque una aplicación siga visible detrás.");
+Assert(!UsageBarVisibilityPolicy.IsFullScreenVisible([smallOverlay], screenBounds, workingArea),
+    "Una ventana normal sin ningún vídeo detrás no debe ocultar la barra.");
+Assert(UsageBarVisibilityPolicy.IsFullScreenVisible(
+    [new(Rectangle.FromLTRB(0, 0, 1919, 1040), HasWindowFrame: true), fullScreenVideo], screenBounds, workingArea),
+    "Un vídeo que sigue parcialmente visible debe mantener oculta la barra.");
 var thresholdOptions = NotificationOptions.Default with
 {
     NotifyAt50Percent = true,

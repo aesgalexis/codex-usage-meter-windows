@@ -8,13 +8,13 @@ public sealed class AppSettingsStore
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
     private readonly string _settingsPath;
 
-    public AppSettingsStore()
+    public AppSettingsStore() : this(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "CodexUsageMeter", "settings.json"))
     {
-        _settingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CodexUsageMeter",
-            "settings.json");
     }
+
+    internal AppSettingsStore(string settingsPath) => _settingsPath = settingsPath;
 
     public AppSettings Load()
     {
@@ -23,8 +23,10 @@ public sealed class AppSettingsStore
             if (!File.Exists(_settingsPath)) return new AppSettings();
 
             var json = File.ReadAllText(_settingsPath);
-            var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
             using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Object) return new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            settings.UsageBarDisplay ??= "auto";
             if (!document.RootElement.TryGetProperty(nameof(AppSettings.SchemaVersion), out _))
             {
                 // 0.6.x persisted noisy reset notifications and an invisible usage bar by

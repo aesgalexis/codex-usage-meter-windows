@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Interop;
+using System.Runtime.InteropServices;
 using CodexUsageMeter.Core;
 using Button = System.Windows.Controls.Button;
 using Brushes = System.Windows.Media.Brushes;
@@ -59,6 +61,11 @@ public sealed class UsageFlyoutWindow : Window
         _compactCard = BuildCompactCard();
         _lineCard = BuildLineCard();
         Content = _card;
+        SourceInitialized += (_, _) =>
+        {
+            UpdateNativeInteraction();
+            HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(HandleNativeMessage);
+        };
         Deactivated += (_, _) => { if (!IsPinned) Hide(); };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsPinned) Hide(); };
     }
@@ -88,9 +95,37 @@ public sealed class UsageFlyoutWindow : Window
         IsHitTestVisible = !IsLine;
         ShowActivated = !IsLine;
         Focusable = !IsLine;
+        UpdateNativeInteraction();
         if (IsCompact) Dispatcher.BeginInvoke(UpdateCompactFill);
         if (IsLine) Dispatcher.BeginInvoke(UpdateLineFill);
     }
+
+    private void UpdateNativeInteraction()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero) return;
+        const int extendedStyleIndex = -20;
+        const int lineStyles = 0x08000000 | 0x00000020; // WS_EX_NOACTIVATE | WS_EX_TRANSPARENT
+        var style = GetWindowLong(handle, extendedStyleIndex);
+        var updated = IsLine ? style | lineStyles : style & ~lineStyles;
+        if (updated != style) SetWindowLong(handle, extendedStyleIndex, updated);
+    }
+
+    private IntPtr HandleNativeMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (IsLine && message == 0x0021) // WM_MOUSEACTIVATE
+        {
+            handled = true;
+            return new IntPtr(3); // MA_NOACTIVATE
+        }
+        return IntPtr.Zero;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr window, int index);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr window, int index, int value);
 
     public void SetLineThickness(int thickness)
     {
