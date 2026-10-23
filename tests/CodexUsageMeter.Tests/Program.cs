@@ -415,6 +415,7 @@ using (var trayIcon = new StableNotifyIcon())
     trayIcon.Visible = false;
 }
 
+await AppUpdateChecks.RunAsync();
 if (args.Contains("--window-checks")) UsageBarWindowChecks.Run();
 Console.WriteLine("Todas las pruebas han pasado.");
 return;

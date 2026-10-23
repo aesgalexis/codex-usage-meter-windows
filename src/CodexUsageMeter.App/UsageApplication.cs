@@ -1,7 +1,10 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net.Http;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -38,6 +41,10 @@ public sealed class UsageApplication : System.Windows.Application
     private Forms.ToolStripMenuItem _normalWidgetItem = null!;
     private Forms.ToolStripMenuItem _compactWidgetItem = null!;
     private Forms.ToolStripMenuItem _usageBarEnabledItem = null!;
+    private Forms.ToolStripMenuItem _appUpdateItem = null!;
+    private readonly CancellationTokenSource _updateCancellation = new();
+    private bool _isUpdatingApp;
+    private string _appUpdateStatus = "CheckUpdates";
     private UsageFlyoutWindow? _flyout;
     private readonly Dictionary<string, UsageFlyoutWindow> _usageBars = new(StringComparer.OrdinalIgnoreCase);
     private Icon? _currentIcon;
@@ -123,6 +130,8 @@ public sealed class UsageApplication : System.Windows.Application
         var language = BuildLanguageMenu();
         var about = new Forms.ToolStripMenuItem(AppText.Get("About"));
         about.Click += (_, _) => ShowAboutWindow();
+        _appUpdateItem = new Forms.ToolStripMenuItem(AppText.Get(_appUpdateStatus)) { Enabled = !_isUpdatingApp };
+        _appUpdateItem.Click += async (_, _) => await InstallLatestUpdateAsync();
         _widgetItem = new Forms.ToolStripMenuItem(AppText.Get("ShowPinned")) { CheckOnClick = true, Checked = _settings.WidgetPinned };
         _widgetItem.CheckedChanged += (_, _) => SetWidgetPinned(_widgetItem.Checked);
         _startupItem = new Forms.ToolStripMenuItem(AppText.Get("StartWindows")) { CheckOnClick = true, Checked = IsStartupEnabled() };
@@ -146,10 +155,86 @@ public sealed class UsageApplication : System.Windows.Application
             language,
             _startupItem,
             new Forms.ToolStripSeparator(),
+            _appUpdateItem,
             about,
             exit
         });
         return menu;
+    }
+
+    private async Task InstallLatestUpdateAsync()
+    {
+        if (_isUpdatingApp) return;
+        _isUpdatingApp = true;
+        _appUpdateItem.Enabled = false;
+        _appUpdateStatus = "CheckingUpdates";
+        _appUpdateItem.Text = AppText.Get(_appUpdateStatus);
+        string? downloadDirectory = null;
+        var installerStarted = false;
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            var updates = new AppUpdateService(client);
+            var installedVersion = Assembly.GetExecutingAssembly().GetName().Version!;
+            var release = await updates.CheckAsync(installedVersion, _updateCancellation.Token);
+            _updateCancellation.Token.ThrowIfCancellationRequested();
+            if (release is null)
+            {
+                System.Windows.MessageBox.Show(AppText.Get("NoAppUpdate"), "Codex Usage Meter",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var isInstalled = File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe"));
+            var prompt = AppText.Get("InstallUpdatePrompt", release.Version.ToString(3));
+            if (!isInstalled) prompt += "\n\n" + AppText.Get("PortableUpdatePrompt");
+            if (System.Windows.MessageBox.Show(prompt, "Codex Usage Meter", MessageBoxButton.YesNo,
+                    MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+
+            _appUpdateStatus = "DownloadingUpdate";
+            _appUpdateItem.Text = AppText.Get(_appUpdateStatus);
+            downloadDirectory = Path.Combine(Path.GetTempPath(), "CodexUsageMeter-updates", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(downloadDirectory);
+            var installer = Path.Combine(downloadDirectory, AppUpdateService.InstallerName);
+            await updates.DownloadInstallerAsync(release, installer, _updateCancellation.Token);
+            _updateCancellation.Token.ThrowIfCancellationRequested();
+            var startInfo = new ProcessStartInfo(installer) { UseShellExecute = true };
+            startInfo.ArgumentList.Add("/SP-");
+            startInfo.ArgumentList.Add("/NORESTART");
+            startInfo.ArgumentList.Add("/LANG=" + (AppText.CurrentLanguage == AppText.Spanish ? "spanish" : "english"));
+            if (isInstalled) startInfo.ArgumentList.Add("/DIR=" + Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
+            using var process = Process.Start(startInfo) ?? throw new IOException("Could not start the installer.");
+            installerStarted = true;
+            _appUpdateStatus = "InstallingUpdate";
+            _appUpdateItem.Text = AppText.Get(_appUpdateStatus);
+            // Keep running if the wizard is cancelled. Setup closes the app when it replaces its executable.
+            await process.WaitForExitAsync(_updateCancellation.Token);
+        }
+        catch (OperationCanceledException) when (_updateCancellation.IsCancellationRequested) { }
+        catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or
+            OperationCanceledException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception or
+            UnauthorizedAccessException or InvalidOperationException)
+        {
+            if (!_updateCancellation.IsCancellationRequested)
+                System.Windows.MessageBox.Show(AppText.Get("AppUpdateFailed"), "Codex Usage Meter",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            if (!installerStarted && downloadDirectory is not null)
+            {
+                try { Directory.Delete(downloadDirectory, recursive: true); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+            _isUpdatingApp = false;
+            _appUpdateStatus = "CheckUpdates";
+            if (!_updateCancellation.IsCancellationRequested)
+            {
+                _appUpdateItem.Text = AppText.Get("CheckUpdates");
+                _appUpdateItem.Enabled = true;
+            }
+        }
     }
 
     private Forms.ToolStripMenuItem BuildWidgetSizeMenu()
@@ -912,6 +997,7 @@ public sealed class UsageApplication : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _updateCancellation.Cancel();
         SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
         _refreshTimer.Stop();
         _fileChangeTimer.Stop();

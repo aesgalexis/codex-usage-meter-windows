@@ -4,6 +4,12 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-10-23
+
+### Added
+
+- Adds an English/Spanish tray-menu option to check for a newer stable GitHub release, verify its installer checksum and open the installer on request, with installed and portable copy handling.
+
 ## [0.6.6] - 2026-10-19
 
 ### Fixed

@@ -33,6 +33,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
 - Supports English and Spanish, selected during installation or changed later from the tray menu.
+- Checks for the latest stable release and opens its installer on request from the tray menu.
 
 ### Widget modes
 
@@ -85,6 +86,7 @@ The app has no main window. After starting it, look for the circular indicator n
 - **Widget:** choose Disabled, Normal or Compact. The chosen design is used for both hover and pinned display.
 - **Usage bar:** independently shows or hides the thin progress line above the taskbar.
 - **About:** shows the installed version, privacy model, project links, license context, and unatomo attribution.
+- **Check for app updates:** checks GitHub for a newer stable version, asks before downloading, verifies its SHA-256 checksum, and opens the installer. Installed copies keep their installation folder and settings. Portable copies can use this option to install the new version in the standard installation folder; the original portable copy is kept. Keep the launch option selected on the installer's final page to reopen the app. Cancelling the wizard leaves the current app running.
 - **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
 - **Right-click:** pin or hide the widget, refresh, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting directly, where you can promote Codex Usage Meter out of the hidden-icons menu.
@@ -114,6 +116,7 @@ The reader is isolated behind an `IUsageProvider` interface so it can be replace
 
 - No OpenAI password, API key, or ChatGPT token is requested.
 - Session contents and usage values never leave the computer.
+- Checking for app updates contacts GitHub only when requested. Downloads come from this project's releases and are verified against the SHA-256 checksum provided by GitHub.
 - This project does not include its own analytics or telemetry.
 - The optional start-with-Windows setting is stored in the current user's standard Windows `Run` registry key.
 - Notification preferences are stored in `%LOCALAPPDATA%\CodexUsageMeter\settings.json`.
@@ -176,7 +179,7 @@ tests/
 - English and Spanish localization following the [localization plan](docs/localization-plan.md).
 - Optional corner snapping and widget appearance controls.
 - Native Windows toast notifications and richer scheduling controls.
-- Installer and automatic updates.
+- Background update notifications.
 - ARM64 builds.
 - Additional usage providers if a supported API becomes available.
 
