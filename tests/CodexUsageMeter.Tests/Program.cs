@@ -407,7 +407,7 @@ finally
     Marshal.FreeHGlobal(iconRectMemory);
 }
 
-using (var trayIcon = new StableNotifyIcon())
+using (var trayIcon = new StableNotifyIcon(Guid.NewGuid()))
 {
     trayIcon.Text = "Codex Usage Meter smoke test";
     trayIcon.Icon = SystemIcons.Application;

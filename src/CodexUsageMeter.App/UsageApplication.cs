@@ -30,7 +30,6 @@ public sealed class UsageApplication : System.Windows.Application
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
     private readonly DispatcherTimer _activityStateTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private readonly DispatcherTimer _shineTimer = new() { Interval = TimeSpan.FromSeconds(3) };
-    private readonly DispatcherTimer _flyoutCloseTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
     private readonly DispatcherTimer _usageBarVisibilityTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly StableNotifyIcon _notifyIcon = new();
     private readonly Forms.ToolStripMenuItem _statusItem = new() { Enabled = false };
@@ -77,16 +76,9 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(null));
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.MouseClick += OnTrayMouseClick;
-        _notifyIcon.HoverOpened += (_, _) => ShowFlyout(false, false);
-        _notifyIcon.HoverClosed += (_, _) => ScheduleFlyoutClose();
         _notifyIcon.Visible = true;
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
-        _flyoutCloseTimer.Tick += (_, _) =>
-        {
-            _flyoutCloseTimer.Stop();
-            if (_flyout is { IsPinned: false, IsMouseOver: false }) _flyout.Hide();
-        };
         _refreshTimer.Tick += async (_, _) => await RefreshAsync();
         _fileChangeTimer.Tick += async (_, _) =>
         {
@@ -180,16 +172,13 @@ public sealed class UsageApplication : System.Windows.Application
             _updateCancellation.Token.ThrowIfCancellationRequested();
             if (release is null)
             {
-                System.Windows.MessageBox.Show(AppText.Get("NoAppUpdate"), "Codex Usage Meter",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                new AppUpdateWindow(installedVersion, null, isInstalled: true).ShowDialog();
                 return;
             }
 
             var isInstalled = File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe"));
-            var prompt = AppText.Get("InstallUpdatePrompt", release.Version.ToString(3));
-            if (!isInstalled) prompt += "\n\n" + AppText.Get("PortableUpdatePrompt");
-            if (System.Windows.MessageBox.Show(prompt, "Codex Usage Meter", MessageBoxButton.YesNo,
-                    MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (new AppUpdateWindow(installedVersion, release.Version, isInstalled).ShowDialog() != true) return;
+            _updateCancellation.Token.ThrowIfCancellationRequested();
 
             _appUpdateStatus = "DownloadingUpdate";
             _appUpdateItem.Text = AppText.Get(_appUpdateStatus);
@@ -701,7 +690,6 @@ public sealed class UsageApplication : System.Windows.Application
     private void ShowFlyout(bool pinned, bool activate = false)
     {
         if (!_settings.WidgetEnabled) return;
-        _flyoutCloseTimer.Stop();
         EnsureFlyout();
         _flyout!.SetPinned(pinned || _settings.WidgetPinned);
         _flyout.SetMode(_settings.WidgetCompact, line: false);
@@ -727,8 +715,6 @@ public sealed class UsageApplication : System.Windows.Application
     {
         if (_flyout is not null) return;
         _flyout = new UsageFlyoutWindow();
-        _flyout.MouseEnter += (_, _) => _flyoutCloseTimer.Stop();
-        _flyout.MouseLeave += (_, _) => ScheduleFlyoutClose();
         _flyout.PinChanged += (_, pinned) =>
         {
             _settings.WidgetPinned = pinned;
@@ -894,13 +880,6 @@ public sealed class UsageApplication : System.Windows.Application
         _usageBars.Clear();
     }
 
-    private void ScheduleFlyoutClose()
-    {
-        if (_flyout?.IsPinned != false) return;
-        _flyoutCloseTimer.Stop();
-        _flyoutCloseTimer.Start();
-    }
-
     private void PositionFlyoutAtTray()
     {
         if (_flyout is null) return;
@@ -1003,7 +982,6 @@ public sealed class UsageApplication : System.Windows.Application
         _fileChangeTimer.Stop();
         _activityStateTimer.Stop();
         _shineTimer.Stop();
-        _flyoutCloseTimer.Stop();
         _usageBarVisibilityTimer.Stop();
         _sessionWatcher?.Dispose();
         _runtimeActivityWatcher?.Dispose();

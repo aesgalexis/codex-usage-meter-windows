@@ -4,6 +4,18 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-11-03
+
+### Fixed
+
+- Keeps the tray icon available when Windows rejects a stable icon identity after the executable moves, and retries registration if the icon is lost.
+- Isolates test icons from the application's tray identity so native checks cannot alter the running app's icon.
+
+### Changed
+
+- Opens the normal and compact tray widgets only on left-click and keeps them open when the pointer leaves; outside clicks and Escape still dismiss unpinned widgets.
+- Renames the usage refresh action to distinguish it from application updates, and shows installed and available versions with an explicit download-and-install button.
+
 ## [0.7.0] - 2026-10-23
 
 ### Added

@@ -44,13 +44,30 @@ internal static class UsageBarWindowChecks
                     throw new InvalidOperationException("El widget debe volver a recibir clics tras salir del modo línea.");
                 bar.ShowWithActivation(activate: false);
                 if (GetForegroundWindow() != foreground || bar.IsActive)
-                    throw new InvalidOperationException("Mostrar el widget por hover no debe robar el foco.");
+                    throw new InvalidOperationException("Restaurar el widget sin activación no debe robar el foco.");
                 bar.Hide();
 
-                using var trayIcon = new StableNotifyIcon { Icon = System.Drawing.SystemIcons.Application, Visible = true };
-                if (trayIcon.TryGetBounds(out var iconBounds) &&
-                    (iconBounds.Width <= 0 || iconBounds.Height <= 0 || iconBounds.Width > 256 || iconBounds.Height > 256))
+                var testGuid = Guid.NewGuid();
+                using var trayIcon = new StableNotifyIcon(testGuid) { Icon = System.Drawing.SystemIcons.Application, Visible = true };
+                if (!trayIcon.IsRegistered || !trayIcon.UsesGuid || !trayIcon.TryGetBounds(out var iconBounds))
+                    throw new InvalidOperationException("El icono de prueba debe registrarse en la bandeja real.");
+                if (iconBounds.Width <= 0 || iconBounds.Height <= 0 || iconBounds.Width > 256 || iconBounds.Height > 256)
                     throw new InvalidOperationException($"Los límites del icono no tienen un tamaño de icono: {iconBounds}.");
+
+                using (var duplicate = new StableNotifyIcon(testGuid) { Icon = System.Drawing.SystemIcons.Application, Visible = true })
+                {
+                    if (!duplicate.IsRegistered || duplicate.UsesGuid || !duplicate.TryGetBounds(out _))
+                        throw new InvalidOperationException("Un GUID ocupado debe usar la identidad HWND/ID para conservar un icono visible.");
+                    duplicate.Text = "Fallback identity check";
+                }
+                if (!trayIcon.TryGetBounds(out _))
+                    throw new InvalidOperationException("Cerrar una copia alternativa no debe borrar el icono original.");
+                trayIcon.Visible = false;
+                if (trayIcon.IsRegistered || trayIcon.TryGetBounds(out _))
+                    throw new InvalidOperationException("Ocultar el icono debe eliminar únicamente su propio registro.");
+                trayIcon.Visible = true;
+                if (!trayIcon.IsRegistered || !trayIcon.TryGetBounds(out _))
+                    throw new InvalidOperationException("El icono debe poder registrarse de nuevo tras ocultarlo.");
             }
             catch (Exception exception)
             {

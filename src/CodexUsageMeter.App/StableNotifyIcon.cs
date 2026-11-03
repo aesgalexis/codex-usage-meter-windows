@@ -9,19 +9,34 @@ public sealed class StableNotifyIcon : IDisposable
     private static readonly Guid TrayIconGuid = new("B74147F2-B9A7-45B8-A59A-B6FAE11B0D43");
     private const uint CallbackMessage = 0x8001;
     private readonly TrayMessageWindow _window;
+    private readonly Guid _trayIconGuid;
     private Icon? _icon;
     private string _text = string.Empty;
     private bool _visible;
+    private bool _registered;
+    private bool _useGuid = true;
     private bool _disposed;
 
-    public StableNotifyIcon()
+    public StableNotifyIcon() : this(TrayIconGuid)
     {
-        _window = new TrayMessageWindow(HandleTrayMessage, AddToShell);
+    }
+
+    internal StableNotifyIcon(Guid trayIconGuid)
+    {
+        _trayIconGuid = trayIconGuid;
+        _window = new TrayMessageWindow(HandleTrayMessage, () =>
+        {
+            _registered = false;
+            AddToShell();
+        });
     }
 
     public event Forms.MouseEventHandler? MouseClick;
     public event EventHandler? HoverOpened;
     public event EventHandler? HoverClosed;
+
+    internal bool IsRegistered => _registered;
+    internal bool UsesGuid => _useGuid;
 
     public Forms.ContextMenuStrip? ContextMenuStrip { get; set; }
 
@@ -73,7 +88,7 @@ public sealed class StableNotifyIcon : IDisposable
 
     public void ShowBalloonTip(int timeout)
     {
-        if (!_visible)
+        if (!_visible || !_registered)
         {
             return;
         }
@@ -88,14 +103,15 @@ public sealed class StableNotifyIcon : IDisposable
 
     public bool TryGetBounds(out Rectangle bounds)
     {
+        bounds = Rectangle.Empty;
+        if (!_registered) return false;
         var identifier = new NotifyIconIdentifier
         {
             Size = (uint)Marshal.SizeOf<NotifyIconIdentifier>(),
             WindowHandle = _window.Handle,
             Id = 1,
-            GuidItem = TrayIconGuid
+            GuidItem = _useGuid ? _trayIconGuid : Guid.Empty
         };
-        bounds = Rectangle.Empty;
         if (Shell_NotifyIconGetRect(ref identifier, out var nativeBounds) != 0) return false;
         var rectangle = nativeBounds.ToRectangle();
         if (rectangle.Width <= 0 || rectangle.Height <= 0) return false;
@@ -110,7 +126,7 @@ public sealed class StableNotifyIcon : IDisposable
 
     private void AddToShell()
     {
-        if (!_visible || _icon is null || _disposed)
+        if (!_visible || _icon is null || _disposed || _registered)
         {
             return;
         }
@@ -120,7 +136,17 @@ public sealed class StableNotifyIcon : IDisposable
             NotifyIconFlags.Icon |
             NotifyIconFlags.Tip |
             NotifyIconFlags.Guid);
-        if (Shell_NotifyIcon(NotifyIconMessage.Add, ref data))
+        _registered = Shell_NotifyIcon(NotifyIconMessage.Add, ref data);
+        if (!_registered && _useGuid)
+        {
+            // Windows binds an unsigned icon GUID to its executable path. A portable
+            // or development copy may need the HWND/ID identity instead.
+            _useGuid = false;
+            data = CreateData(NotifyIconFlags.Message | NotifyIconFlags.Icon | NotifyIconFlags.Tip);
+            _registered = Shell_NotifyIcon(NotifyIconMessage.Add, ref data);
+            if (!_registered) _useGuid = true;
+        }
+        if (_registered)
         {
             data.TimeoutOrVersion = 4;
             Shell_NotifyIcon(NotifyIconMessage.SetVersion, ref data);
@@ -134,19 +160,29 @@ public sealed class StableNotifyIcon : IDisposable
             return;
         }
 
+        if (!_registered)
+        {
+            AddToShell();
+            return;
+        }
         var data = CreateData(NotifyIconFlags.Icon | NotifyIconFlags.Tip | NotifyIconFlags.Guid);
-        Shell_NotifyIcon(NotifyIconMessage.Modify, ref data);
+        if (!Shell_NotifyIcon(NotifyIconMessage.Modify, ref data))
+        {
+            _registered = false;
+            AddToShell();
+        }
     }
 
     private void DeleteFromShell()
     {
-        if (_window.Handle == IntPtr.Zero)
+        if (!_registered || _window.Handle == IntPtr.Zero)
         {
             return;
         }
 
         var data = CreateData(NotifyIconFlags.Guid);
         Shell_NotifyIcon(NotifyIconMessage.Delete, ref data);
+        _registered = false;
     }
 
     private NotifyIconData CreateData(NotifyIconFlags flags) => new()
@@ -154,13 +190,13 @@ public sealed class StableNotifyIcon : IDisposable
         Size = (uint)Marshal.SizeOf<NotifyIconData>(),
         WindowHandle = _window.Handle,
         Id = 1,
-        Flags = flags,
+        Flags = _useGuid ? flags : flags & ~NotifyIconFlags.Guid,
         CallbackMessage = CallbackMessage,
         IconHandle = _icon?.Handle ?? IntPtr.Zero,
         Tip = _text[..Math.Min(_text.Length, 127)],
         Info = string.Empty,
         InfoTitle = string.Empty,
-        GuidItem = TrayIconGuid
+        GuidItem = _useGuid ? _trayIconGuid : Guid.Empty
     };
 
     private void HandleTrayMessage(int message)

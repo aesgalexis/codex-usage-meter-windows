@@ -16,7 +16,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 ## Features
 
 - Uses the rolling five-hour limit for the tray icon and shows both five-hour and weekly availability in its tooltip.
-- Optionally shows a normal or compact usage card when you hover over or left-click the tray icon.
+- Optionally shows a normal or compact usage card when you left-click the tray icon.
 - Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
 - Offers a compact pinned mode where the entire capsule is the weekly available-usage bar, with an integrated pin and five-hour reset countdown.
 - Plays a subtle shine across the compact bar when it opens and on immediate local session writes.
@@ -37,9 +37,9 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 
 ### Widget modes
 
-The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs use the weekly limit for their percentage and progress, show the five-hour reset countdown, and can be shown temporarily or pinned and dragged anywhere on the desktop. Hovering over the tray icon shows the widget without taking keyboard focus.
+The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs use the weekly limit for their percentage and progress, show the five-hour reset countdown, and can be shown temporarily or pinned and dragged anywhere on the desktop. Left-click the tray icon to open or close the widget. An unpinned widget also closes when you click outside it or press Escape; moving the pointer does not open or close it.
 
-The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used for tray hover. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
+The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
 
 The line stays above normal and maximized browser windows while the taskbar is visible, hides for full-screen videos and applications on its display, and reappears without taking keyboard focus. Mouse clicks pass through to the application beneath it. A small window over a still-visible full-screen video keeps the line hidden; normal windows that fully cover the video allow it to reappear.
 
@@ -83,16 +83,17 @@ Interactive installer builds offer English and Spanish. Portable and silent WinG
 The app has no main window. After starting it, look for the circular indicator next to the Windows clock; it may initially appear under the hidden-icons arrow.
 
 - **Default behavior:** no widget is shown; right-click opens the original tray menu and left-click shows the usage balloon.
-- **Widget:** choose Disabled, Normal or Compact. The chosen design is used for both hover and pinned display.
+- **Widget:** choose Disabled, Normal or Compact. The chosen design is used for both click-to-open and pinned display.
 - **Usage bar:** independently shows or hides the thin progress line above the taskbar.
 - **About:** shows the installed version, privacy model, project links, license context, and unatomo attribution.
-- **Check for app updates:** checks GitHub for a newer stable version, asks before downloading, verifies its SHA-256 checksum, and opens the installer. Installed copies keep their installation folder and settings. Portable copies can use this option to install the new version in the standard installation folder; the original portable copy is kept. Keep the launch option selected on the installer's final page to reopen the app. Cancelling the wizard leaves the current app running.
+- **Refresh usage data:** rereads local usage data. This action does not check for application updates.
+- **Check for updates:** checks GitHub for a newer stable version and shows the installed and available versions with a **Download and install** button. It verifies the download's SHA-256 checksum before opening the installer. Installed copies keep their installation folder and settings. Portable copies can use this option to install the new version in the standard installation folder; the original portable copy is kept. Keep the launch option selected on the installer's final page to reopen the app. Cancelling the wizard leaves the current app running.
 - **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
 - **Right-click:** pin or hide the widget, refresh, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting directly, where you can promote Codex Usage Meter out of the hidden-icons menu.
 - **Notifications:** enables or disables percentage changes, individual warning thresholds, and reset notices.
 
-If the icon reports that no data is available, run at least one Codex task and select **Update now**.
+If the icon reports that no data is available, run at least one Codex task and select **Refresh usage data**.
 
 ## How it works
 
