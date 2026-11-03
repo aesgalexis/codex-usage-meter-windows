@@ -38,6 +38,7 @@ jobs:
           & $iscc "/DMyAppVersion=$version" "/DSourceDir=$sourceDir" "/DOutputDir=$outputDir" "installer/CodexUsageMeter.iss"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test silent install, automatic update and uninstall
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $installer = (Resolve-Path "artifacts/CodexUsageMeter-Setup-win-x64.exe").Path
@@ -48,7 +49,9 @@ jobs:
           if (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) { throw "Installed executable not found" }
           $beforeUpdate = Start-Process -FilePath $installedApp -WindowStyle Hidden -PassThru
           Start-Sleep -Seconds 2
-          $update = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/SP-', '/NORESTART', '/CLOSEAPPLICATIONS', '/FORCECLOSEAPPLICATIONS', '/NORESTARTAPPLICATIONS', '/AUTOMATICUPDATE=1', "/DIR=`"$testDir`"", "/RESTARTAPP=`"$installedApp`"" -WindowStyle Hidden -Wait -PassThru
+          $update = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/SP-', '/NORESTART', '/CLOSEAPPLICATIONS', '/FORCECLOSEAPPLICATIONS', '/NORESTARTAPPLICATIONS', '/AUTOMATICUPDATE=1', "/DIR=`"$testDir`"", "/RESTARTAPP=`"$installedApp`"" -WindowStyle Hidden -PassThru
+          # Wait only for Setup; its relaunched tray app is meant to keep running.
+          if (-not $update.WaitForExit(120000)) { throw "Automatic installer timed out" }
           if ($update.ExitCode -ne 0) { throw "Automatic update exited with $($update.ExitCode)" }
           Start-Sleep -Seconds 2
           $afterUpdate = @(Get-Process CodexUsageMeter -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $installedApp })
