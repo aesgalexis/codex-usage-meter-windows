@@ -124,6 +124,10 @@ public sealed class StableNotifyIcon : IDisposable
         return GetPhysicalCursorPos(out var position) ? position : Forms.Cursor.Position;
     }
 
+    internal bool IsLeftClickInProgress() =>
+        (GetAsyncKeyState(0x01) & 0x8000) != 0 && // VK_LBUTTON
+        TryGetBounds(out var bounds) && bounds.Contains(GetPhysicalCursorPosition());
+
     private void AddToShell()
     {
         if (!_visible || _icon is null || _disposed || _registered)
@@ -360,6 +364,9 @@ public sealed class StableNotifyIcon : IDisposable
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GetPhysicalCursorPos(out Point point);
+
+    [DllImport("user32.dll")]
+    private static extern short GetAsyncKeyState(int virtualKey);
 
     [DllImport("user32.dll")]
     private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);

@@ -66,13 +66,19 @@ public sealed class UsageFlyoutWindow : Window
             UpdateNativeInteraction();
             HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(HandleNativeMessage);
         };
-        Deactivated += (_, _) => { if (!IsPinned) Hide(); };
+        Deactivated += (_, _) =>
+        {
+            // Clicking the tray deactivates this window before MouseClick arrives.
+            // Keep it visible until that handler can toggle it closed.
+            if (!IsPinned && IsTrayClickInProgress?.Invoke() != true) Hide();
+        };
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape && !IsPinned) Hide(); };
     }
 
     public bool IsPinned { get; private set; }
     public bool IsCompact { get; private set; }
     public bool IsLine { get; private set; }
+    internal Func<bool>? IsTrayClickInProgress { get; set; }
     public event EventHandler<bool>? PinChanged;
     public event EventHandler? PositionChanged;
 

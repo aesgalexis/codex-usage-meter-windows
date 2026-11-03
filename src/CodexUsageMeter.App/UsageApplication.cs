@@ -714,7 +714,7 @@ public sealed class UsageApplication : System.Windows.Application
     private void EnsureFlyout()
     {
         if (_flyout is not null) return;
-        _flyout = new UsageFlyoutWindow();
+        _flyout = new UsageFlyoutWindow { IsTrayClickInProgress = _notifyIcon.IsLeftClickInProgress };
         _flyout.PinChanged += (_, pinned) =>
         {
             _settings.WidgetPinned = pinned;

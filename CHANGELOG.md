@@ -4,6 +4,12 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.2] - 2026-11-03
+
+### Fixed
+
+- Keeps a second tray click from reopening the usage card after Windows deactivates it, so successive clicks open and close the card.
+
 ## [0.7.1] - 2026-11-03
 
 ### Fixed

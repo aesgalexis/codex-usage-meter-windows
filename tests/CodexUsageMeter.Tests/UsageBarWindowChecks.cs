@@ -47,6 +47,8 @@ internal static class UsageBarWindowChecks
                     throw new InvalidOperationException("Restaurar el widget sin activación no debe robar el foco.");
                 bar.Hide();
 
+                using (var toggleChecks = new FlyoutToggleChecks()) toggleChecks.Run();
+
                 var testGuid = Guid.NewGuid();
                 using var trayIcon = new StableNotifyIcon(testGuid) { Icon = System.Drawing.SystemIcons.Application, Visible = true };
                 if (!trayIcon.IsRegistered || !trayIcon.UsesGuid || !trayIcon.TryGetBounds(out var iconBounds))
@@ -92,4 +94,45 @@ internal static class UsageBarWindowChecks
 
     [DllImport("user32.dll")]
     private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+
+    private sealed class FlyoutToggleChecks : IDisposable
+    {
+        private readonly System.Windows.Window _other = new() { Left = -32000, Top = -32000, Width = 100, Height = 100 };
+        private readonly UsageFlyoutWindow _card = new() { Left = -32000, Top = -32000 };
+
+        public void Run()
+        {
+            _other.Show();
+            foreach (var compact in new[] { false, true })
+            {
+                _card.SetMode(compact, line: false);
+                _card.SetPinned(false);
+                _card.IsTrayClickInProgress = () => true;
+                _card.ShowWithActivation(activate: true);
+                if (!_card.IsActive) throw new InvalidOperationException("La prueba requiere una tarjeta activa.");
+                _other.Activate();
+                if (_card.IsActive) throw new InvalidOperationException("La prueba debe desactivar la tarjeta antes de recibir el clic.");
+                if (!_card.IsVisible)
+                    throw new InvalidOperationException("El clic en la bandeja no debe ocultar la tarjeta antes de que el controlador pueda alternarla.");
+                _card.Hide();
+
+                _card.IsTrayClickInProgress = () => false;
+                _card.ShowWithActivation(activate: true);
+                _other.Activate();
+                if (_card.IsVisible)
+                    throw new InvalidOperationException("Un clic fuera de la bandeja debe seguir cerrando la tarjeta.");
+            }
+            _card.SetPinned(true);
+            _card.ShowWithActivation(activate: true);
+            _other.Activate();
+            if (!_card.IsVisible)
+                throw new InvalidOperationException("La tarjeta fijada debe permanecer visible al perder el foco.");
+        }
+
+        public void Dispose()
+        {
+            _card.Close();
+            _other.Close();
+        }
+    }
 }
