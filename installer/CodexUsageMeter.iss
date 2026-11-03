@@ -60,3 +60,42 @@ Root: HKCU; Subkey: "Software\CodexUsageMeter"; ValueType: string; ValueName: "I
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,Codex Usage Meter}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+var
+  UpdateRelaunched: Boolean;
+
+function IsAutomaticUpdate: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:AUTOMATICUPDATE|0}') = '1');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if (CurStep = ssDone) and IsAutomaticUpdate then
+  begin
+    UpdateRelaunched := ExecAsOriginalUser(ExpandConstant('{app}\{#MyAppExeName}'),
+      '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+    if not UpdateRelaunched then
+      Log('Could not reopen the updated application: ' + IntToStr(ResultCode));
+  end;
+end;
+
+procedure DeinitializeSetup;
+var
+  PreviousExe: String;
+  ResultCode: Integer;
+begin
+  if IsAutomaticUpdate and not UpdateRelaunched then
+  begin
+    PreviousExe := ExpandConstant('{param:RESTARTAPP|}');
+    if (CompareText(ExtractFileName(PreviousExe), '{#MyAppExeName}') = 0) and FileExists(PreviousExe) then
+    begin
+      Log('Reopening the previous application after an automatic update failure.');
+      if not ExecAsOriginalUser(PreviousExe, '--update-failed', '', SW_SHOWNORMAL, ewNoWait, ResultCode) then
+        Log('Could not reopen the previous application: ' + IntToStr(ResultCode));
+    end;
+  end;
+end;

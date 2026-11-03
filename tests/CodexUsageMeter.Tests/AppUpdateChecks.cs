@@ -4,11 +4,13 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using CodexUsageMeter.Infrastructure;
+using CodexUsageMeter.App;
 
 internal static class AppUpdateChecks
 {
     public static async Task RunAsync()
     {
+        CheckInstallerArguments();
         var payload = Encoding.UTF8.GetBytes("synthetic installer content");
         var hash = Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
         var metadata = $$"""
@@ -81,6 +83,22 @@ internal static class AppUpdateChecks
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    private static void CheckInstallerArguments()
+    {
+        const string directory = @"C:\Apps with spaces\Codex Usage Meter\";
+        var installed = AppUpdateInstaller.CreateStartInfo(@"C:\Updates\setup.exe", directory, true, AppText.English);
+        Require(installed.UseShellExecute && installed.FileName == @"C:\Updates\setup.exe", "Debe iniciar el instalador verificado.");
+        foreach (var argument in new[] { "/VERYSILENT", "/SUPPRESSMSGBOXES", "/SP-", "/NORESTART",
+                     "/CLOSEAPPLICATIONS", "/FORCECLOSEAPPLICATIONS", "/NORESTARTAPPLICATIONS", "/AUTOMATICUPDATE=1" })
+            Require(installed.ArgumentList.Contains(argument), "La actualización debe instalar y cerrar la app sin preguntas ni reiniciar Windows.");
+        Require(installed.ArgumentList.Contains(@"/DIR=C:\Apps with spaces\Codex Usage Meter"), "Debe conservar la carpeta instalada, incluidos sus espacios.");
+        Require(installed.ArgumentList.Contains(@"/RESTARTAPP=C:\Apps with spaces\Codex Usage Meter\CodexUsageMeter.exe"), "Debe poder recuperar la copia original si falla.");
+        Require(installed.ArgumentList.Contains("/LANG=english"), "Debe conservar el idioma inglés.");
+        var portable = AppUpdateInstaller.CreateStartInfo(@"C:\Updates\setup.exe", directory, false, AppText.Spanish);
+        Require(!portable.ArgumentList.Any(argument => argument.StartsWith("/DIR=", StringComparison.Ordinal)), "La copia portable debe usar la carpeta de instalación habitual.");
+        Require(portable.ArgumentList.Contains("/LANG=spanish") && portable.ArgumentList.Contains("/AUTOMATICUPDATE=1"), "La copia portable también debe actualizarse en silencio y reabrirse.");
     }
 
     private static async Task RejectAsync(Func<Task> action, string message)

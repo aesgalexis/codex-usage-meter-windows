@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.3] - 2026-11-03
+
+### Changed
+
+- Makes **Update application** complete the download, verification, silent installation and relaunch without further confirmations or installer buttons.
+- Uses tray notifications for update status and errors, and attempts to reopen the previous copy if installation fails.
+
 ## [0.7.2] - 2026-11-03
 
 ### Fixed

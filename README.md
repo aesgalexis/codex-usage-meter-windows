@@ -33,7 +33,7 @@ Codex is not an installer dependency. If Codex is absent, the meter stays idle a
 - Optionally starts with Windows.
 - Runs locally without account credentials, analytics, or telemetry from this app.
 - Supports English and Spanish, selected during installation or changed later from the tray menu.
-- Checks for the latest stable release and opens its installer on request from the tray menu.
+- Downloads, verifies and installs the latest stable release automatically when requested from the tray menu, then reopens the app.
 
 ### Widget modes
 
@@ -87,7 +87,7 @@ The app has no main window. After starting it, look for the circular indicator n
 - **Usage bar:** independently shows or hides the thin progress line above the taskbar.
 - **About:** shows the installed version, privacy model, project links, license context, and unatomo attribution.
 - **Refresh usage data:** rereads local usage data. This action does not check for application updates.
-- **Check for updates:** checks GitHub for a newer stable version and shows the installed and available versions with a **Download and install** button. It verifies the download's SHA-256 checksum before opening the installer. Installed copies keep their installation folder and settings. Portable copies can use this option to install the new version in the standard installation folder; the original portable copy is kept. Keep the launch option selected on the installer's final page to reopen the app. Cancelling the wizard leaves the current app running.
+- **Update application:** checks GitHub, downloads a newer stable version, verifies its SHA-256 checksum and installs it silently. The app closes and reopens automatically, with no confirmation or installer buttons to press. Installed copies keep their installation folder and settings. Portable copies are closed and the new version starts from the standard installation folder; the original portable files are kept. If no update is available or an error occurs, the app reports it with a non-blocking tray notification. Download and verification failures leave the current app running; an installer failure attempts to reopen the previous copy.
 - **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
 - **Right-click:** pin or hide the widget, refresh, enable startup with Windows, or exit.
 - **Show always in the system tray:** opens the Windows taskbar setting directly, where you can promote Codex Usage Meter out of the hidden-icons menu.

@@ -77,6 +77,8 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.ContextMenuStrip = BuildMenu();
         _notifyIcon.MouseClick += OnTrayMouseClick;
         _notifyIcon.Visible = true;
+        if (e.Args.Contains("--update-failed", StringComparer.OrdinalIgnoreCase))
+            Dispatcher.BeginInvoke(() => ShowUpdateBalloon(AppText.Get("AppUpdateInstallFailed")));
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
 
         _refreshTimer.Tick += async (_, _) => await RefreshAsync();
@@ -172,13 +174,11 @@ public sealed class UsageApplication : System.Windows.Application
             _updateCancellation.Token.ThrowIfCancellationRequested();
             if (release is null)
             {
-                new AppUpdateWindow(installedVersion, null, isInstalled: true).ShowDialog();
+                ShowUpdateBalloon(AppText.Get("NoAppUpdate", installedVersion.ToString(3)));
                 return;
             }
 
             var isInstalled = File.Exists(Path.Combine(AppContext.BaseDirectory, "unins000.exe"));
-            if (new AppUpdateWindow(installedVersion, release.Version, isInstalled).ShowDialog() != true) return;
-            _updateCancellation.Token.ThrowIfCancellationRequested();
 
             _appUpdateStatus = "DownloadingUpdate";
             _appUpdateItem.Text = AppText.Get(_appUpdateStatus);
@@ -187,17 +187,20 @@ public sealed class UsageApplication : System.Windows.Application
             var installer = Path.Combine(downloadDirectory, AppUpdateService.InstallerName);
             await updates.DownloadInstallerAsync(release, installer, _updateCancellation.Token);
             _updateCancellation.Token.ThrowIfCancellationRequested();
-            var startInfo = new ProcessStartInfo(installer) { UseShellExecute = true };
-            startInfo.ArgumentList.Add("/SP-");
-            startInfo.ArgumentList.Add("/NORESTART");
-            startInfo.ArgumentList.Add("/LANG=" + (AppText.CurrentLanguage == AppText.Spanish ? "spanish" : "english"));
-            if (isInstalled) startInfo.ArgumentList.Add("/DIR=" + Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
+            var startInfo = AppUpdateInstaller.CreateStartInfo(installer, AppContext.BaseDirectory, isInstalled, AppText.CurrentLanguage);
             using var process = Process.Start(startInfo) ?? throw new IOException("Could not start the installer.");
             installerStarted = true;
             _appUpdateStatus = "InstallingUpdate";
             _appUpdateItem.Text = AppText.Get(_appUpdateStatus);
-            // Keep running if the wizard is cancelled. Setup closes the app when it replaces its executable.
+            // The installer closes installed copies automatically. A portable copy is
+            // outside its file list, so release its single-instance mutex ourselves.
+            if (!isInstalled)
+            {
+                Shutdown();
+                return;
+            }
             await process.WaitForExitAsync(_updateCancellation.Token);
+            if (process.ExitCode != 0) ShowUpdateBalloon(AppText.Get("AppUpdateFailed"));
         }
         catch (OperationCanceledException) when (_updateCancellation.IsCancellationRequested) { }
         catch (Exception exception) when (exception is HttpRequestException or IOException or InvalidDataException or
@@ -205,8 +208,7 @@ public sealed class UsageApplication : System.Windows.Application
             UnauthorizedAccessException or InvalidOperationException)
         {
             if (!_updateCancellation.IsCancellationRequested)
-                System.Windows.MessageBox.Show(AppText.Get("AppUpdateFailed"), "Codex Usage Meter",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowUpdateBalloon(AppText.Get("AppUpdateFailed"));
         }
         finally
         {
@@ -224,6 +226,13 @@ public sealed class UsageApplication : System.Windows.Application
                 _appUpdateItem.Enabled = true;
             }
         }
+    }
+
+    private void ShowUpdateBalloon(string message)
+    {
+        _notifyIcon.BalloonTipTitle = AppText.Get("AppUpdatesTitle");
+        _notifyIcon.BalloonTipText = message;
+        _notifyIcon.ShowBalloonTip(6000);
     }
 
     private Forms.ToolStripMenuItem BuildWidgetSizeMenu()

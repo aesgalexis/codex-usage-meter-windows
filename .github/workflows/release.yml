@@ -37,17 +37,25 @@ jobs:
           if (-not (Test-Path -LiteralPath $iscc -PathType Leaf)) { throw "Inno Setup compiler not found" }
           & $iscc "/DMyAppVersion=$version" "/DSourceDir=$sourceDir" "/DOutputDir=$outputDir" "installer/CodexUsageMeter.iss"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Test silent install and uninstall
+      - name: Test silent install, automatic update and uninstall
         shell: pwsh
         run: |
           $installer = (Resolve-Path "artifacts/CodexUsageMeter-Setup-win-x64.exe").Path
           $testDir = Join-Path $env:RUNNER_TEMP "CodexUsageMeterInstallTest"
-          $install = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$testDir`"" -Wait -PassThru
+          $install = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$testDir`"" -WindowStyle Hidden -Wait -PassThru
           if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)" }
           $installedApp = Join-Path $testDir "CodexUsageMeter.exe"
           if (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) { throw "Installed executable not found" }
+          $beforeUpdate = Start-Process -FilePath $installedApp -WindowStyle Hidden -PassThru
+          Start-Sleep -Seconds 2
+          $update = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/SP-', '/NORESTART', '/CLOSEAPPLICATIONS', '/FORCECLOSEAPPLICATIONS', '/NORESTARTAPPLICATIONS', '/AUTOMATICUPDATE=1', "/DIR=`"$testDir`"", "/RESTARTAPP=`"$installedApp`"" -WindowStyle Hidden -Wait -PassThru
+          if ($update.ExitCode -ne 0) { throw "Automatic update exited with $($update.ExitCode)" }
+          Start-Sleep -Seconds 2
+          $afterUpdate = @(Get-Process CodexUsageMeter -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $installedApp })
+          if ($afterUpdate.Count -ne 1 -or $afterUpdate[0].Id -eq $beforeUpdate.Id) { throw "Automatic update did not close and reopen the app" }
+          $afterUpdate | Stop-Process
           $uninstaller = Join-Path $testDir "unins000.exe"
-          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -WindowStyle Hidden -Wait -PassThru
           if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)" }
       - name: Create ZIP
         shell: pwsh
