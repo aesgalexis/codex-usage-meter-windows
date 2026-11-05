@@ -23,14 +23,16 @@ Widget and menu screenshots use synthetic usage data, not real account or sessio
 Install from the Windows Package Manager community catalog:
 
 ```powershell
-winget install --id aesgalexis.CodexUsageMeter --exact
+winget install CodexUsageMeter
 ```
 
 To upgrade an existing installation:
 
 ```powershell
-winget upgrade --id aesgalexis.CodexUsageMeter --exact
+winget upgrade CodexUsageMeter
 ```
+
+WinGet matches this query against the package name and ID. If multiple packages match, use the full package ID shown by `winget search CodexUsageMeter`.
 
 New releases appear in WinGet after the catalog update is accepted; the GitHub downloads are available immediately.
 
