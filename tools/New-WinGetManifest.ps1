@@ -6,7 +6,8 @@ param(
     [Parameter(Mandatory)]
     [string]$InstallerPath,
     [string]$OutputDirectory = 'packaging/winget',
-    [datetime]$ReleaseDate = [datetime]::UtcNow.Date
+    [datetime]$ReleaseDate = [datetime]::UtcNow.Date,
+    [string]$ReleaseNotes
 )
 
 $ErrorActionPreference = 'Stop'
@@ -19,6 +20,16 @@ if ($installedVersion -ne $Version) {
     throw "Installer version $installedVersion does not match requested version $Version."
 }
 $checksum = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash
+if ([string]::IsNullOrWhiteSpace($ReleaseNotes)) {
+    $changelog = [IO.File]::ReadAllText((Join-Path $PSScriptRoot '../CHANGELOG.md'))
+    $entryPattern = '(?ms)^## \[' + [regex]::Escape($Version) + '\][^\r\n]*\r?\n(.*?)(?=^## \[|\z)'
+    $entry = [regex]::Match($changelog, $entryPattern).Groups[1].Value
+    $ReleaseNotes = ([regex]::Matches($entry, '(?m)^- [^\r\n]+') | ForEach-Object { $_.Value }) -join "`n"
+    if ([string]::IsNullOrWhiteSpace($ReleaseNotes)) {
+        throw 'Provide -ReleaseNotes or add the version to CHANGELOG.md before generating manifests.'
+    }
+}
+$indentedNotes = (($ReleaseNotes.Trim() -split '\r?\n') | ForEach-Object { "  $_" }) -join "`n"
 $directory = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) $Version
 New-Item -ItemType Directory -Path $directory -Force | Out-Null
 $date = $ReleaseDate.ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
@@ -81,6 +92,8 @@ Tags:
   - system-tray
   - usage
   - windows
+ReleaseNotes: |-
+$indentedNotes
 ReleaseNotesUrl: $repo/releases/tag/v$Version
 ManifestType: defaultLocale
 ManifestVersion: 1.12.0
