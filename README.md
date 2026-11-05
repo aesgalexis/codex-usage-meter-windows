@@ -14,6 +14,8 @@ It reads local Codex session data without account credentials, analytics, or tel
 
 ![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
 
+Widget and menu screenshots use synthetic usage data, not real account or session information.
+
 ## Installation
 
 ### WinGet
@@ -36,7 +38,7 @@ New releases appear in WinGet after the catalog update is accepted; the GitHub d
 
 Download and run the [latest Windows installer](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-Setup-win-x64.exe). It installs per user, requires no administrator privileges, and keeps a stable location for future upgrades. A [portable ZIP](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-win-x64.zip) is also available.
 
-Published builds require **Windows 10 or Windows 11, x64**. They are self-contained, so the destination PC does not need the .NET runtime installed.
+Published builds require **Windows 10 build 17763 or later, or Windows 11, x64**. They are self-contained and include .NET 10, so the destination PC does not need the .NET runtime installed. Platform support follows Microsoft's support policy; these requirements do not imply testing on every Windows release.
 
 Codex is not an installer dependency. The app can start without it and waits for local usage snapshots. To display usage, run at least one recent task in Codex or the Codex extension for Visual Studio Code, which writes compatible local session data.
 
@@ -58,6 +60,8 @@ The app has no main window. Look for the circular indicator next to the Windows 
 
 On a new installation, the widget is disabled and the three-pixel usage bar is enabled. Left-click the tray icon for a weekly-usage balloon; right-click to open the menu.
 
+For keyboard access, press **Windows+B**, use the arrow keys to select the tray icon, and press **Enter** or **Space** to perform its primary action. Open its menu with the **Menu** key or **Shift+F10**.
+
 ![Codex Usage Meter tray menu](docs/assets/tray-menu.png)
 
 ### Which limit each display uses
@@ -72,15 +76,19 @@ On a new installation, the widget is disabled and the three-pixel usage bar is e
 | Taskbar usage bar | Weekly availability, with a white marker for five-hour availability. |
 | Notifications | Weekly percentage changes, usage thresholds, and resets. |
 
+Missing window values appear as **—**. If Codex reports only the five-hour window, weekly displays remain unavailable and weekly notifications wait for weekly data; the app does not substitute the five-hour percentage for a weekly limit.
+
 Green, amber, and red follow each display's limit independently, so the tray icon and weekly bars can have different colors. Indicators turn purple when local data reports a positive credit balance with credits available and an exhausted usage window. Credits are shown as a balance, not as a number of resets.
 
 ### Widgets and usage bar
 
 Choose **Widget → Normal** or **Compact** for a detailed card or a minimal capsule, or **Disabled** to turn the widget off. Left-click the tray icon to open an enabled widget or close an unpinned one. An unpinned widget also closes when you click outside it or press Escape; moving the pointer does not open or close it.
 
-Pin either design to keep it visible, then drag it anywhere on the desktop; its position is restored next time. The compact capsule uses its entire width as the weekly-availability bar and includes an integrated pin and five-hour reset countdown. Both designs show monochrome model symbols: a sun for Sol, a moon for Luna, and a circle for Terra.
+Pin either design to keep it visible, then drag it anywhere on the desktop; its position is restored next time. If a display is disconnected or the saved position is off-screen, the widget returns to a visible working area. The compact capsule uses its entire width as the weekly-availability bar and includes an integrated pin and five-hour reset countdown. Both designs show monochrome model symbols: a sun for Sol, a moon for Luna, and a circle for Terra.
 
 The compact bar shines when it opens and on local session writes. Activity detection combines session task-state events with local runtime-write metadata to stay responsive during Codex runs; it does not inspect conversation content.
+
+Interrupted activity expires after ten minutes without session writes, including when the task-start event has left the inspected session tail.
 
 **Usage bar** independently controls the non-interactive line immediately above the taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and shines more brightly while Codex is working. Set its thickness from one to five pixels and choose automatic placement near the notification area, a specific detected display, or every display. It works with either widget design or with widgets disabled.
 
@@ -95,6 +103,8 @@ The line stays above normal and maximized browser windows while the taskbar is v
 - **About:** shows the installed version, privacy model, project links, license context, and unatomo attribution.
 - The right-click menu also lets you pin or hide the widget and exit the app.
 
+The app reads sessions from `%CODEX_HOME%\sessions` when `CODEX_HOME` is set to a non-empty path, otherwise from `%USERPROFILE%\.codex\sessions`. Restart the meter after changing the environment variable so it inherits the new value.
+
 ### Languages
 
 The tray menu and usage displays support English and Spanish, with immediate switching from the language submenu. Interactive installers offer both languages; portable and silent WinGet installations use the Windows display language on first run. Your selection is preserved across upgrades.
@@ -107,7 +117,11 @@ Choose **Update application** to check GitHub for a newer stable release, downlo
 
 Installed copies keep their installation folder and settings. Portable copies are closed and the new version starts from the standard installation folder; the original portable files are kept.
 
+If the portable copy was registered to start with Windows, updating it through the tray menu moves that registration to the installed copy. Updates preserve the enabled or disabled startup choice, and uninstall removes only the startup registration belonging to the copy being removed.
+
 If no update is available or an error occurs, the app reports it with a non-blocking tray notification. Download and verification failures leave the current app running; an installer failure attempts to reopen the previous copy.
+
+Abandoned update download directories older than 24 hours are cleaned up on a later app start. Cleanup is limited to this app's temporary update directories.
 
 ## Privacy and security
 
@@ -122,11 +136,11 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## Development
 
-Development requires Git and the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0). Published app requirements and everyday controls are covered in [Installation](#installation) and [Using the app](#using-the-app).
+Development requires Git and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Published app requirements and everyday controls are covered in [Installation](#installation) and [Using the app](#using-the-app).
 
 ### How it works
 
-Codex writes session events below `%USERPROFILE%\.codex\sessions`. The app searches recent `.jsonl` session files, reads only their tail, and extracts the latest `rate_limits` snapshot. It does not read the files to reconstruct conversations.
+Codex writes session events below its home directory's `sessions` folder. `CodexHomeResolver` uses an explicit provider path first, then a non-empty `CODEX_HOME`, then `%USERPROFILE%\.codex`. The session provider and activity watchers use the same resolved home. The app searches recent `.jsonl` session files, reads only their tail, and extracts the latest `rate_limits` snapshot. It does not read the files to reconstruct conversations.
 
 ```text
 Codex local sessions
@@ -138,7 +152,7 @@ UsageSnapshot
 Windows tray indicator, widgets, and taskbar usage bar
 ```
 
-The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows and identifies them by duration. The tray icon uses the five-hour window when available, falling back to weekly; widget progress, the taskbar line, tray menu status, and notifications use the weekly window. The tooltip, taskbar marker, and widget countdown expose five-hour data separately.
+The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows and identifies them by duration. The tray icon uses the five-hour window when available, falling back to a real weekly window; widget progress, the taskbar line, tray menu status, and notifications use only a real weekly window. A missing weekly window remains unknown. The tooltip, taskbar marker, and widget countdown expose five-hour data separately.
 
 Temporary read failures retain the last valid value and mark it as stale. Retained local session files can still provide usage data after Codex is removed; uninstalling Codex does not guarantee the meter returns to an empty state.
 
@@ -161,7 +175,7 @@ dotnet build .\CodexUsageMeter.sln --configuration Release
 dotnet run --project .\tests\CodexUsageMeter.Tests\CodexUsageMeter.Tests.csproj --configuration Release
 ```
 
-On an interactive Windows desktop, add `-- --window-checks` to the test command to also verify that hiding and showing the usage line preserves the active window, passes mouse input through, and prevents mouse activation.
+The automated checks use synthetic fixtures for session parsing, data-state regressions, notifications, configuration, and update handling, with a native tray-icon smoke check. On an interactive Windows desktop, add `-- --window-checks` to the test command to also verify that hiding and showing the usage line preserves the active window, passes mouse input through, and prevents mouse activation. These checks complement manual use; they do not establish that every Windows, display, or Codex-client combination works.
 
 Create a self-contained portable build:
 
@@ -169,6 +183,16 @@ Create a self-contained portable build:
 dotnet publish .\src\CodexUsageMeter.App\CodexUsageMeter.App.csproj `
   -p:PublishProfile=win-x64 `
   --output .\artifacts\win-x64
+```
+
+Follow the [release checklist](docs/release-checklist.md) for installer checks, screenshots, native and manual validation, version consistency, and WinGet submission. The installer checks must run in a clean, disposable Windows profile or CI because they install the app and change startup registration.
+
+Generate manifests from the exact installer intended for release:
+
+```powershell
+.\tools\New-WinGetManifest.ps1 -Version 0.8.0 `
+  -InstallerPath .\artifacts\CodexUsageMeter-Setup-win-x64.exe
+winget validate --manifest .\packaging\winget\0.8.0
 ```
 
 ### Project structure

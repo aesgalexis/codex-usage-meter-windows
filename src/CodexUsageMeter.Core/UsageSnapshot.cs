@@ -25,7 +25,6 @@ public sealed record UsageSnapshot(
         Windows.Where(window => window.WindowMinutes is >= 240 and <= 360)
             .OrderBy(window => Math.Abs(window.WindowMinutes!.Value - 5 * 60))
             .FirstOrDefault();
-    public UsageWindow WeeklyWindow =>
-        Windows.FirstOrDefault(window => window.WindowMinutes == 7 * 24 * 60) ??
-        Windows.OrderByDescending(window => window.WindowMinutes ?? 0).First();
+    public UsageWindow? WeeklyWindow =>
+        Windows.FirstOrDefault(window => window.WindowMinutes == 7 * 24 * 60);
 }

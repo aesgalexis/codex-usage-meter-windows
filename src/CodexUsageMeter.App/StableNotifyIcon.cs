@@ -15,6 +15,7 @@ public sealed class StableNotifyIcon : IDisposable
     private bool _visible;
     private bool _registered;
     private bool _useGuid = true;
+    private bool _usesVersion4;
     private bool _disposed;
 
     public StableNotifyIcon() : this(TrayIconGuid)
@@ -37,6 +38,7 @@ public sealed class StableNotifyIcon : IDisposable
 
     internal bool IsRegistered => _registered;
     internal bool UsesGuid => _useGuid;
+    internal bool UsesVersion4 => _usesVersion4;
 
     public Forms.ContextMenuStrip? ContextMenuStrip { get; set; }
 
@@ -153,7 +155,7 @@ public sealed class StableNotifyIcon : IDisposable
         if (_registered)
         {
             data.TimeoutOrVersion = 4;
-            Shell_NotifyIcon(NotifyIconMessage.SetVersion, ref data);
+            _usesVersion4 = Shell_NotifyIcon(NotifyIconMessage.SetVersion, ref data);
         }
     }
 
@@ -194,7 +196,9 @@ public sealed class StableNotifyIcon : IDisposable
         Size = (uint)Marshal.SizeOf<NotifyIconData>(),
         WindowHandle = _window.Handle,
         Id = 1,
-        Flags = _useGuid ? flags : flags & ~NotifyIconFlags.Guid,
+        // Version 4 suppresses the standard tooltip unless SHOWTIP is requested.
+        // Preserve it for both registration paths and all modifications, including balloons.
+        Flags = (_useGuid ? flags : flags & ~NotifyIconFlags.Guid) | NotifyIconFlags.ShowTip,
         CallbackMessage = CallbackMessage,
         IconHandle = _icon?.Handle ?? IntPtr.Zero,
         Tip = _text[..Math.Min(_text.Length, 127)],
@@ -203,9 +207,8 @@ public sealed class StableNotifyIcon : IDisposable
         GuidItem = _useGuid ? _trayIconGuid : Guid.Empty
     };
 
-    private void HandleTrayMessage(int message)
+    private void HandleTrayMessage(int message, IntPtr callbackPosition)
     {
-        var position = GetPhysicalCursorPosition();
         switch (message)
         {
             case 0x0406: // NIN_POPUPOPEN
@@ -214,25 +217,50 @@ public sealed class StableNotifyIcon : IDisposable
             case 0x0407: // NIN_POPUPCLOSE
                 HoverClosed?.Invoke(this, EventArgs.Empty);
                 break;
-            case 0x0202: // WM_LBUTTONUP
+            case 0x0202 when !_usesVersion4: // Legacy WM_LBUTTONUP
+            case 0x0400 when _usesVersion4: // NIN_SELECT
+            case 0x0401 when _usesVersion4: // NIN_KEYSELECT (Enter/Space)
+                // Version 4 can deliver both mouse-up and NIN_SELECT for one click.
+                // Use the semantic event only, and use its icon anchor for keyboard input.
+                var position = _usesVersion4 ? UnpackPosition(callbackPosition) : GetPhysicalCursorPosition();
                 MouseClick?.Invoke(this, new Forms.MouseEventArgs(Forms.MouseButtons.Left, 1, position.X, position.Y, 0));
                 break;
-            case 0x0205: // WM_RBUTTONUP
-                if (ContextMenuStrip is not null)
-                {
-                    SetForegroundWindow(_window.Handle);
-                    var previousDpiContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
-                    try
-                    {
-                        ContextMenuStrip.Show(position);
-                        PostMessage(_window.Handle, 0, IntPtr.Zero, IntPtr.Zero);
-                    }
-                    finally
-                    {
-                        if (previousDpiContext != IntPtr.Zero) SetThreadDpiAwarenessContext(previousDpiContext);
-                    }
-                }
+            case 0x0205 when !_usesVersion4: // Legacy WM_RBUTTONUP
+            case 0x007B when _usesVersion4: // WM_CONTEXTMENU (mouse or keyboard)
+                var cursor = GetPhysicalCursorPosition();
+                // The version-4 callback does not define wParam coordinates for
+                // WM_CONTEXTMENU. Keep mouse placement and anchor keyboard requests
+                // at the icon when the pointer is elsewhere.
+                var menuPosition = _usesVersion4 && TryGetBounds(out var bounds)
+                    ? ResolveContextMenuPosition(cursor, bounds)
+                    : cursor;
+                ShowContextMenu(menuPosition);
                 break;
+        }
+    }
+
+    internal static Point UnpackPosition(IntPtr packedPosition)
+    {
+        var value = packedPosition.ToInt64();
+        return new Point(unchecked((short)value), unchecked((short)(value >> 16)));
+    }
+
+    internal static Point ResolveContextMenuPosition(Point cursor, Rectangle iconBounds) =>
+        iconBounds.Contains(cursor) ? cursor : new Point(iconBounds.Left, iconBounds.Bottom);
+
+    private void ShowContextMenu(Point position)
+    {
+        if (ContextMenuStrip is null) return;
+        SetForegroundWindow(_window.Handle);
+        var previousDpiContext = SetThreadDpiAwarenessContext(new IntPtr(-4));
+        try
+        {
+            ContextMenuStrip.Show(position);
+            PostMessage(_window.Handle, 0, IntPtr.Zero, IntPtr.Zero);
+        }
+        finally
+        {
+            if (previousDpiContext != IntPtr.Zero) SetThreadDpiAwarenessContext(previousDpiContext);
         }
     }
 
@@ -253,11 +281,11 @@ public sealed class StableNotifyIcon : IDisposable
 
     private sealed class TrayMessageWindow : Forms.NativeWindow, IDisposable
     {
-        private readonly Action<int> _messageHandler;
+        private readonly Action<int, IntPtr> _messageHandler;
         private readonly Action _taskbarCreatedHandler;
         private readonly uint _taskbarCreatedMessage;
 
-        public TrayMessageWindow(Action<int> messageHandler, Action taskbarCreatedHandler)
+        public TrayMessageWindow(Action<int, IntPtr> messageHandler, Action taskbarCreatedHandler)
         {
             _messageHandler = messageHandler;
             _taskbarCreatedHandler = taskbarCreatedHandler;
@@ -273,7 +301,7 @@ public sealed class StableNotifyIcon : IDisposable
             }
             else if ((uint)message.Msg == CallbackMessage)
             {
-                _messageHandler((int)(message.LParam.ToInt64() & 0xFFFF));
+                _messageHandler((int)(message.LParam.ToInt64() & 0xFFFF), message.WParam);
             }
 
             base.WndProc(ref message);
@@ -332,7 +360,8 @@ public sealed class StableNotifyIcon : IDisposable
         Icon = 0x00000002,
         Tip = 0x00000004,
         Info = 0x00000010,
-        Guid = 0x00000020
+        Guid = 0x00000020,
+        ShowTip = 0x00000080
     }
 
     private enum NotifyIconMessage : uint

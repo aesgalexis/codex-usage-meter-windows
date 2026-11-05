@@ -198,14 +198,12 @@ public sealed class UsageFlyoutWindow : Window
         }
 
         var weeklyWindow = snapshot.WeeklyWindow;
-        var available = (int)Math.Round(weeklyWindow.AvailablePercent);
-        _available.Text = AppText.Get("AvailableText", available);
-        _details.Text = snapshot.Windows.Count > 1
-            ? string.Join(" · ", snapshot.Windows.Select(window => AppText.Get("WindowUsed", FormatWindow(window.WindowMinutes), window.UsedPercent.ToString("0.#", AppText.Culture))))
-            : AppText.Get("UsedText", snapshot.UsedPercent.ToString("0.#", AppText.Culture));
-        var weeklyReset = weeklyWindow.ResetsAt is { } reset
+        var available = weeklyWindow is null ? (int?)null : (int)Math.Round(weeklyWindow.AvailablePercent);
+        _available.Text = available is { } value ? AppText.Get("AvailableText", value) : AppText.Get("WeeklyUnavailable");
+        _details.Text = string.Join(" · ", snapshot.Windows.Select(window => AppText.Get("WindowUsed", FormatWindow(window.WindowMinutes), window.UsedPercent.ToString("0.#", AppText.Culture))));
+        var weeklyReset = weeklyWindow?.ResetsAt is { } reset
             ? AppText.Get("WindowResets", "7d", FormatResetCountdown(reset))
-            : AppText.Get("Updated", snapshot.ObservedAt.ToLocalTime().ToString("t", AppText.Culture));
+            : AppText.Get("NoReset");
         var fiveHourWindow = snapshot.FiveHourWindow;
         var fiveHourReset = fiveHourWindow?.ResetsAt is { } fiveHourResetAt
             ? AppText.Get("WindowResets", "5h", FormatResetCountdown(fiveHourResetAt))
@@ -217,8 +215,10 @@ public sealed class UsageFlyoutWindow : Window
             : AppText.Get("NoCredits");
         _credits.Text = stale ? $"{AppText.Get("Stale")}: {age} · {creditsText}" : $"{age} · {creditsText}";
         _credits.ToolTip = stale ? error : null;
-        _progress.Value = weeklyWindow.AvailablePercent;
-        _progress.Foreground = new SolidColorBrush(snapshot.IsUsingCredits
+        _progress.Value = weeklyWindow?.AvailablePercent ?? 0;
+        _progress.Foreground = new SolidColorBrush(weeklyWindow is null
+            ? Color.FromRgb(120, 130, 140)
+            : snapshot.IsUsingCredits
             ? Color.FromRgb(139, 92, 246)
             : available switch
             {
@@ -226,10 +226,10 @@ public sealed class UsageFlyoutWindow : Window
                 >= 20 => Color.FromRgb(240, 170, 35),
                 _ => Color.FromRgb(220, 65, 70)
             });
-        _availablePercent = weeklyWindow.AvailablePercent;
-        _lineAvailablePercent = weeklyWindow.AvailablePercent;
+        _availablePercent = weeklyWindow?.AvailablePercent ?? 0;
+        _lineAvailablePercent = weeklyWindow?.AvailablePercent ?? 0;
         _fiveHourAvailablePercent = snapshot.FiveHourWindow?.AvailablePercent;
-        _compactPercent.Text = $"{available}%";
+        _compactPercent.Text = available is { } percent ? $"{percent}%" : "—";
         _compactDots.Text = fiveHourReset ?? string.Empty;
         _compactDots.ToolTip = fiveHourWindow?.ResetsAt?.ToLocalTime().ToString("g", AppText.Culture);
         SetModelIcon(snapshot.ActiveModel);

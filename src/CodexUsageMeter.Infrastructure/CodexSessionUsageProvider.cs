@@ -16,9 +16,7 @@ public sealed class CodexSessionUsageProvider : IUsageProvider
 
     public CodexSessionUsageProvider(string? codexHome = null)
     {
-        var home = codexHome ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
-        _sessionsDirectory = Path.Combine(home, "sessions");
+        _sessionsDirectory = Path.Combine(CodexHomeResolver.Resolve(codexHome), "sessions");
     }
 
     public async Task<UsageResult> GetLatestAsync(CancellationToken cancellationToken = default)

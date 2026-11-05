@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.0.0-dev"
+  #define MyAppVersion "0.0.0"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\artifacts\win-x64"
@@ -62,6 +62,10 @@ Root: HKCU; Subkey: "Software\CodexUsageMeter"; ValueType: string; ValueName: "I
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,Codex Usage Meter}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+const
+  StartupKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
+  StartupValue = 'CodexUsageMeter';
+
 var
   UpdateRelaunched: Boolean;
 
@@ -70,16 +74,57 @@ begin
   Result := WizardSilent and (ExpandConstant('{param:AUTOMATICUPDATE|0}') = '1');
 end;
 
+function StartupTargetsExecutable(const Command, Executable: String): Boolean;
+begin
+  Result := (Executable <> '') and
+    (CompareText(RemoveQuotes(Trim(Command)), Executable) = 0);
+end;
+
+procedure PreserveStartupRegistration;
+var
+  Command, InstalledExe, PreviousExe: String;
+begin
+  if not RegQueryStringValue(HKCU, StartupKey, StartupValue, Command) then
+    Exit;
+
+  InstalledExe := ExpandConstant('{app}\{#MyAppExeName}');
+  PreviousExe := ExpandConstant('{param:RESTARTAPP|}');
+  if StartupTargetsExecutable(Command, InstalledExe) or
+    (IsAutomaticUpdate and
+      (CompareText(ExtractFileName(PreviousExe), '{#MyAppExeName}') = 0) and
+      StartupTargetsExecutable(Command, PreviousExe)) then
+  begin
+    if not RegWriteStringValue(HKCU, StartupKey, StartupValue, '"' + InstalledExe + '"') then
+      Log('Could not preserve the start-with-Windows setting.');
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ResultCode: Integer;
 begin
+  if CurStep = ssPostInstall then
+    PreserveStartupRegistration;
+
   if (CurStep = ssDone) and IsAutomaticUpdate then
   begin
     UpdateRelaunched := ExecAsOriginalUser(ExpandConstant('{app}\{#MyAppExeName}'),
       '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
     if not UpdateRelaunched then
       Log('Could not reopen the updated application: ' + IntToStr(ResultCode));
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Command: String;
+begin
+  if (CurUninstallStep = usPostUninstall) and
+    RegQueryStringValue(HKCU, StartupKey, StartupValue, Command) and
+    StartupTargetsExecutable(Command, ExpandConstant('{app}\{#MyAppExeName}')) then
+  begin
+    if not RegDeleteValue(HKCU, StartupKey, StartupValue) then
+      Log('Could not remove this installation''s start-with-Windows setting.');
   end;
 end;
 
