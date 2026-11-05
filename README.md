@@ -4,114 +4,110 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](https://github.com/aesgalexis/codex-usage-meter-windows)
 
-A small, privacy-friendly Windows tray application that shows your latest Codex usage limit at a glance.
+See how much Codex usage you have left without interrupting your work. Codex Usage Meter puts your latest five-hour and weekly availability in the Windows tray, with optional desktop widgets and a thin usage bar above the taskbar.
 
-![Codex Usage Meter tray menu](docs/assets/tray-menu.png)
+It reads local Codex session data without account credentials, analytics, or telemetry from this app.
 
-> [!IMPORTANT]
-> This is an early development version. The app reads rate-limit snapshots written by Codex to local session files. That file format is not a documented public API and may change in future Codex versions.
-
-Codex is not an installer dependency. If Codex is absent, the meter stays idle and reports that no usage data is available. It starts reading automatically after Codex creates a local session. If Codex is later removed, the meter returns safely to the same idle state. The Codex extension for Visual Studio Code is compatible because it writes the same local session data.
-
-## Features
-
-- Uses the rolling five-hour limit for the tray icon and shows both five-hour and weekly availability in its tooltip.
-- Optionally shows a normal or compact usage card when you left-click the tray icon.
-- Lets you pin that card as an always-visible desktop widget, drag it anywhere, and remember its position.
-- Offers a compact pinned mode where the entire capsule is the weekly available-usage bar, with an integrated pin and five-hour reset countdown.
-- Plays a subtle shine across the compact bar when it opens and on immediate local session writes.
-- Keeps the activity shine responsive during current Codex runs by combining session task-state events with local runtime-write metadata; it does not inspect conversation content.
-- Optionally shows a three-pixel weekly usage bar across the screen above the taskbar, with a visible marker for the rolling five-hour limit and a brighter shine while Codex is working.
-- Shows a monochrome sun, moon or Earth symbol for detected Sol, Luna or Terra models in both widget sizes.
-- Displays separate weekly and five-hour reset countdowns.
-- Shows the locally reported credit balance beneath the reset countdown without assuming that credits represent resets.
-- Uses green, amber, or red independently: the tray icon follows five-hour availability, while widget and taskbar progress follow weekly availability.
-- Reacts to Codex session changes almost immediately, with a 30-second fallback refresh.
-- Offers persistent weekly-limit notifications for integer percentage changes, 50/75/90% usage thresholds, and resets. Percentage notifications are disabled by default on new installations.
-- Opens the Windows setting used to keep its icon permanently visible.
-- Uses a stable native notification-area identity so Windows can retain that visibility choice across upgrades.
-- Optionally starts with Windows.
-- Runs locally without account credentials, analytics, or telemetry from this app.
-- Supports English and Spanish, selected during installation or changed later from the tray menu.
-- Downloads, verifies and installs the latest stable release automatically when requested from the tray menu, then reopens the app.
-
-### Widget modes
-
-The optional widget can use a detailed normal card or a minimal compact usage bar. Both designs use the weekly limit for their percentage and progress, show the five-hour reset countdown, and can be shown temporarily or pinned and dragged anywhere on the desktop. Left-click the tray icon to open or close the widget. An unpinned widget also closes when you click outside it or press Escape; moving the pointer does not open or close it.
-
-The separate usage-bar option adds a non-interactive weekly-limit line immediately above the Windows taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and places a short white marker at the rolling five-hour availability. It can remain enabled while either widget design is used. Its thickness can be set from one to five pixels, and it can follow the notification area automatically, target a specific detected display, or appear on every display.
-
-The line stays above normal and maximized browser windows while the taskbar is visible, hides for full-screen videos and applications on its display, and reappears without taking keyboard focus. Mouse clicks pass through to the application beneath it. A small window over a still-visible full-screen video keeps the line hidden; normal windows that fully cover the video allow it to reappear.
-
-![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
-
-| Normal | Compact |
+| Normal widget | Compact widget |
 | --- | --- |
 | ![Normal Codex usage widget](docs/assets/widget-normal.png) | ![Compact Codex usage widget](docs/assets/widget-compact.png) |
 
-### Languages
-
-The tray menu and usage displays support English and Spanish, with immediate switching from the language submenu.
-
-![Codex Usage Meter tray menu in English](docs/assets/tray-menu-english.png)
+![Codex usage bar above the Windows taskbar](docs/assets/usage-bar.png)
 
 ## Installation
 
-### Portable release
-
-Download the [latest Windows installer](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-Setup-win-x64.exe) and run it. The installer works per user, does not require administrator privileges, and keeps a stable location for future upgrades.
-
-The [portable ZIP](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-win-x64.zip) remains available for users who prefer not to install the app.
-
-Published builds are self-contained: the destination PC does not need the .NET runtime installed.
-
 ### WinGet
 
-The app is available in the Windows Package Manager community catalog. Installation and upgrades use:
+Install from the Windows Package Manager community catalog:
 
 ```powershell
 winget install --id aesgalexis.CodexUsageMeter --exact
+```
+
+To upgrade an existing installation:
+
+```powershell
 winget upgrade --id aesgalexis.CodexUsageMeter --exact
 ```
 
 New releases appear in WinGet after the catalog update is accepted; the GitHub downloads are available immediately.
 
-Interactive installer builds offer English and Spanish. Portable and silent WinGet installations use the Windows display language on first run. The language can always be changed later from the tray menu and is preserved across upgrades.
+### Installer or portable ZIP
 
-### Using the app
+Download and run the [latest Windows installer](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-Setup-win-x64.exe). It installs per user, requires no administrator privileges, and keeps a stable location for future upgrades. A [portable ZIP](https://github.com/aesgalexis/codex-usage-meter-windows/releases/latest/download/CodexUsageMeter-win-x64.zip) is also available.
 
-The app has no main window. After starting it, look for the circular indicator next to the Windows clock; it may initially appear under the hidden-icons arrow.
+Published builds require **Windows 10 or Windows 11, x64**. They are self-contained, so the destination PC does not need the .NET runtime installed.
 
-- **Default behavior:** no widget is shown; right-click opens the original tray menu and left-click shows the usage balloon.
-- **Widget:** choose Disabled, Normal or Compact. The chosen design is used for both click-to-open and pinned display.
-- **Usage bar:** independently shows or hides the thin progress line above the taskbar.
+Codex is not an installer dependency. The app can start without it and waits for local usage snapshots. To display usage, run at least one recent task in Codex or the Codex extension for Visual Studio Code, which writes compatible local session data.
+
+> [!IMPORTANT]
+> This is an early development version. The app reads rate-limit snapshots written by Codex to local session files. That file format is not a documented public API and may change in future Codex versions.
+
+## Features
+
+- **Limits at a glance:** five-hour and weekly availability, reset countdowns, and locally reported credit balance.
+- **Flexible displays:** normal or compact widgets you can pin and drag, plus an independent taskbar usage bar with display and thickness controls.
+- **Responsive updates:** near-immediate session-change refreshes, a 30-second fallback refresh, and local activity shine effects.
+- **Weekly notifications:** configurable integer percentage changes, 50/75/90% usage thresholds, and resets, with saved preferences. Percentage-change notifications are disabled by default on new installations.
+- **Windows integration:** optional startup with Windows and a stable tray identity that lets Windows retain your icon visibility choice across upgrades.
+- **Language and updates:** English and Spanish with immediate switching, plus download, verification, installation, and relaunch of the latest stable release when requested from the tray menu.
+
+## Using the app
+
+The app has no main window. Look for the circular indicator next to the Windows clock; it may initially appear under the hidden-icons arrow.
+
+On a new installation, the widget is disabled and the three-pixel usage bar is enabled. Left-click the tray icon for a weekly-usage balloon; right-click to open the menu.
+
+![Codex Usage Meter tray menu](docs/assets/tray-menu.png)
+
+### Which limit each display uses
+
+| Display | Limit shown |
+| --- | --- |
+| Tray icon | Rolling five-hour availability; falls back to weekly if five-hour data is unavailable. |
+| Tray tooltip | Both five-hour and weekly availability. |
+| Tray menu status and reset, left-click balloon | Weekly limit. |
+| Widget percentage and progress | Weekly availability; both widget modes also show the five-hour reset countdown when available. |
+| Normal widget details | Weekly and five-hour reset countdowns, plus the locally reported credit balance. |
+| Taskbar usage bar | Weekly availability, with a white marker for five-hour availability. |
+| Notifications | Weekly percentage changes, usage thresholds, and resets. |
+
+Green, amber, and red follow each display's limit independently, so the tray icon and weekly bars can have different colors. Indicators turn purple when local data reports a positive credit balance with credits available and an exhausted usage window. Credits are shown as a balance, not as a number of resets.
+
+### Widgets and usage bar
+
+Choose **Widget → Normal** or **Compact** for a detailed card or a minimal capsule, or **Disabled** to turn the widget off. Left-click the tray icon to open an enabled widget or close an unpinned one. An unpinned widget also closes when you click outside it or press Escape; moving the pointer does not open or close it.
+
+Pin either design to keep it visible, then drag it anywhere on the desktop; its position is restored next time. The compact capsule uses its entire width as the weekly-availability bar and includes an integrated pin and five-hour reset countdown. Both designs show monochrome model symbols: a sun for Sol, a moon for Luna, and a circle for Terra.
+
+The compact bar shines when it opens and on local session writes. Activity detection combines session task-state events with local runtime-write metadata to stay responsive during Codex runs; it does not inspect conversation content.
+
+**Usage bar** independently controls the non-interactive line immediately above the taskbar. It starts at the left edge, shortens from the right as weekly availability falls, and shines more brightly while Codex is working. Set its thickness from one to five pixels and choose automatic placement near the notification area, a specific detected display, or every display. It works with either widget design or with widgets disabled.
+
+The line stays above normal and maximized browser windows while the taskbar is visible, hides for full-screen videos and applications on its display, and reappears without taking keyboard focus. Mouse clicks pass through to the application beneath it. A small window over a still-visible full-screen video keeps the line hidden; normal windows that fully cover the video allow it to reappear.
+
+### Tray controls and troubleshooting
+
+- **Refresh usage data:** rereads local data without checking for app updates. If no data is available, run a Codex task and refresh.
+- **Notifications:** enable or disable weekly percentage changes, individual warning thresholds, and reset notices.
+- **Always show in system tray...:** opens the Windows taskbar setting where you can move the icon out of the hidden-icons menu.
+- **Start with Windows:** optionally launch the meter at sign-in.
 - **About:** shows the installed version, privacy model, project links, license context, and unatomo attribution.
-- **Refresh usage data:** rereads local usage data. This action does not check for application updates.
-- **Update application:** checks GitHub, downloads a newer stable version, verifies its SHA-256 checksum and installs it silently. The app closes and reopens automatically, with no confirmation or installer buttons to press. Installed copies keep their installation folder and settings. Portable copies are closed and the new version starts from the standard installation folder; the original portable files are kept. If no update is available or an error occurs, the app reports it with a non-blocking tray notification. Download and verification failures leave the current app running; an installer failure attempts to reopen the previous copy.
-- **Pin:** keep the card visible as a draggable desktop widget. Its position is restored next time.
-- **Right-click:** pin or hide the widget, refresh, enable startup with Windows, or exit.
-- **Show always in the system tray:** opens the Windows taskbar setting directly, where you can promote Codex Usage Meter out of the hidden-icons menu.
-- **Notifications:** enables or disables percentage changes, individual warning thresholds, and reset notices.
+- The right-click menu also lets you pin or hide the widget and exit the app.
 
-If the icon reports that no data is available, run at least one Codex task and select **Refresh usage data**.
+### Languages
 
-## How it works
+The tray menu and usage displays support English and Spanish, with immediate switching from the language submenu. Interactive installers offer both languages; portable and silent WinGet installations use the Windows display language on first run. Your selection is preserved across upgrades.
 
-Codex writes session events below `%USERPROFILE%\.codex\sessions`. The app searches recent `.jsonl` session files, reads only their tail, and extracts the latest `rate_limits` snapshot. It does not read the files to reconstruct conversations.
+![Codex Usage Meter tray menu in English](docs/assets/tray-menu-english.png)
 
-```text
-Codex local sessions
-        ↓
-CodexSessionUsageProvider
-        ↓
-UsageSnapshot
-        ↓
-Windows tray indicator
-```
+### Updating the app
 
-The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows and identifies them by duration. The tray indicator, widgets, taskbar line and notifications use the weekly window consistently, while the rolling five-hour window is exposed separately through its taskbar marker and widget countdown. Temporary read failures retain the last valid value and mark it as stale.
+Choose **Update application** to check GitHub for a newer stable release, download it, verify its SHA-256 checksum, and install it silently. The app closes and reopens automatically, with no confirmation or installer buttons to press.
 
-The reader is isolated behind an `IUsageProvider` interface so it can be replaced if OpenAI publishes a suitable supported API.
+Installed copies keep their installation folder and settings. Portable copies are closed and the new version starts from the standard installation folder; the original portable files are kept.
+
+If no update is available or an error occurs, the app reports it with a non-blocking tray notification. Download and verification failures leave the current app running; an installer failure attempts to reopen the previous copy.
 
 ## Privacy and security
 
@@ -124,20 +120,31 @@ The reader is isolated behind an `IUsageProvider` interface so it can be replace
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
-## Requirements
-
-For a published build:
-
-- Windows 10 or Windows 11, x64.
-- Codex or the Codex extension for Visual Studio Code, plus at least one recent task, is required only to display usage data.
-- The app can be installed and started without Codex; it will wait for local session data.
-
-For development:
-
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
-- Git.
-
 ## Development
+
+Development requires Git and the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0). Published app requirements and everyday controls are covered in [Installation](#installation) and [Using the app](#using-the-app).
+
+### How it works
+
+Codex writes session events below `%USERPROFILE%\.codex\sessions`. The app searches recent `.jsonl` session files, reads only their tail, and extracts the latest `rate_limits` snapshot. It does not read the files to reconstruct conversations.
+
+```text
+Codex local sessions
+        ↓
+CodexSessionUsageProvider
+        ↓
+UsageSnapshot
+        ↓
+Windows tray indicator, widgets, and taskbar usage bar
+```
+
+The provider compares event timestamps across recent sessions rather than trusting file modification order. It reads both `primary` and `secondary` rate-limit windows and identifies them by duration. The tray icon uses the five-hour window when available, falling back to weekly; widget progress, the taskbar line, tray menu status, and notifications use the weekly window. The tooltip, taskbar marker, and widget countdown expose five-hour data separately.
+
+Temporary read failures retain the last valid value and mark it as stale. Retained local session files can still provide usage data after Codex is removed; uninstalling Codex does not guarantee the meter returns to an empty state.
+
+The reader is isolated behind an `IUsageProvider` interface so it can be replaced if OpenAI publishes a suitable supported API. See the implemented [localization plan](docs/localization-plan.md) for language resolution and verification details.
+
+### Build and verify
 
 Clone and run:
 
@@ -164,7 +171,7 @@ dotnet publish .\src\CodexUsageMeter.App\CodexUsageMeter.App.csproj `
   --output .\artifacts\win-x64
 ```
 
-## Project structure
+### Project structure
 
 ```text
 src/
@@ -175,9 +182,8 @@ tests/
   CodexUsageMeter.Tests/           Dependency-free parser/provider checks
 ```
 
-## Roadmap
+### Roadmap and contributing
 
-- English and Spanish localization following the [localization plan](docs/localization-plan.md).
 - Optional corner snapping and widget appearance controls.
 - Native Windows toast notifications and richer scheduling controls.
 - Background update notifications.
