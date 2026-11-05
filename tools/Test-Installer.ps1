@@ -70,8 +70,10 @@ function Assert-Condition([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
 
-function Wait-Setup([string]$Executable, [string[]]$SetupArguments) {
-    $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -PassThru
+function Wait-Setup([string]$Executable, [string[]]$SetupArguments, [switch]$WaitForChildren) {
+    # Uninstall delegates to a temporary child process. Wait for that tree before
+    # checking registry cleanup; Setup instead relaunches a long-running tray app.
+    $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -Wait:$WaitForChildren -PassThru
     try {
         # -Wait also waits for the relaunched tray app, which is meant to keep running.
         if (-not $process.WaitForExit(120000)) { throw 'Setup process timed out.' }
@@ -117,7 +119,7 @@ function Invoke-Installation([string]$RestartApp = '') {
 function Invoke-Uninstallation {
     Stop-TestProcesses
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
-    Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+    Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WaitForChildren
     Assert-Condition (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) 'Uninstall left the application executable behind.'
 }
 
@@ -138,7 +140,7 @@ try {
     $checks.Add('Installed update closes and reopens the app and preserves startup.')
 
     Invoke-Uninstallation
-    Assert-Condition ($null -eq (Get-StartupCommand)) 'Uninstall left its startup entry behind.'
+    Assert-Condition ($null -eq (Get-StartupCommand)) ("Uninstall left startup entry: $(Get-StartupCommand); requested app: $installedApp" )
     $checks.Add('Uninstall removes its own startup entry.')
 
     New-Item -ItemType Directory -Path $portableDirectory | Out-Null
@@ -165,7 +167,7 @@ finally {
     Stop-TestProcesses
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
     if (Test-Path -LiteralPath $uninstaller -PathType Leaf) {
-        try { Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') }
+        try { Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WaitForChildren }
         catch { Write-Warning "Test uninstall cleanup failed: $_" }
     }
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($startupKeyPath, $true)
