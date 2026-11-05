@@ -70,9 +70,11 @@ Published builds are self-contained: the destination PC does not need the .NET r
 The app is available in the Windows Package Manager community catalog. Installation and upgrades use:
 
 ```powershell
-winget install --id aesgalexis.CodexUsageMeter --exact
-winget upgrade --id aesgalexis.CodexUsageMeter --exact
+winget install CodexUsageMeter
+winget upgrade CodexUsageMeter
 ```
+
+WinGet matches this query against the package name and ID. If multiple packages match, use the full package ID shown by `winget search CodexUsageMeter`.
 
 New releases appear in WinGet after the catalog update is accepted; the GitHub downloads are available immediately.
 
