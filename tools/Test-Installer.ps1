@@ -70,17 +70,28 @@ function Assert-Condition([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
 
-function Wait-Setup([string]$Executable, [string[]]$SetupArguments, [switch]$WaitForChildren) {
-    # Uninstall delegates to a temporary child process. Wait for that tree before
-    # checking registry cleanup; Setup instead relaunches a long-running tray app.
-    Write-Output "Starting $(Split-Path -Leaf $Executable); wait for children: $WaitForChildren"
-    $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -Wait:$WaitForChildren -PassThru
+function Wait-Setup([string]$Executable, [string[]]$SetupArguments) {
+    Write-Output "Starting $(Split-Path -Leaf $Executable)."
+    $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -PassThru
     try {
-        # -Wait also waits for the relaunched tray app, which is meant to keep running.
+        # Start-Process -Wait has no timeout and can wait for descendants indefinitely.
         if (-not $process.WaitForExit(120000)) { throw 'Setup process timed out.' }
         if ($process.ExitCode -ne 0) { throw "Setup exited with $($process.ExitCode)." }
     }
     finally { $process.Dispose() }
+}
+
+function Wait-Uninstalled {
+    # Inno's launcher delegates to a temporary child. Wait for the actual removal
+    # rather than an unbounded process-tree wait, before reading registry state.
+    $uninstaller = Join-Path $installDirectory 'unins000.exe'
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    while ((Test-Path -LiteralPath $installedApp) -or (Test-Path -LiteralPath $uninstaller)) {
+        if ([DateTime]::UtcNow -ge $deadline) { throw 'Uninstall did not remove the application and uninstaller within 30 seconds.' }
+        Start-Sleep -Milliseconds 100
+    }
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($uninstallKeyPath)
+    if ($key) { $key.Dispose(); throw 'Uninstall left its registration behind.' }
 }
 
 function Get-InstalledProcesses {
@@ -120,7 +131,8 @@ function Invoke-Installation([string]$RestartApp = '') {
 function Invoke-Uninstallation {
     Stop-TestProcesses
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
-    Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WaitForChildren
+    Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+    Wait-Uninstalled
     Assert-Condition (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) 'Uninstall left the application executable behind.'
 }
 
@@ -173,7 +185,10 @@ finally {
     Stop-TestProcesses
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
     if (Test-Path -LiteralPath $uninstaller -PathType Leaf) {
-        try { Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WaitForChildren }
+        try {
+            Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+            Wait-Uninstalled
+        }
         catch { Write-Warning "Test uninstall cleanup failed: $_" }
     }
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($startupKeyPath, $true)
