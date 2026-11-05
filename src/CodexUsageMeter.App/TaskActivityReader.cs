@@ -13,6 +13,8 @@ public static class TaskActivityReader
             await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete, bufferSize: 4096, useAsync: true);
             var lastWrite = File.GetLastWriteTimeUtc(path);
+            if (now - lastWrite > inactiveAfter) return false;
+
             var bytesToRead = (int)Math.Min(stream.Length, 1024 * 1024);
             stream.Seek(-bytesToRead, SeekOrigin.End);
             var buffer = new byte[bytesToRead];
@@ -42,7 +44,7 @@ public static class TaskActivityReader
                     switch (payloadType.GetString())
                     {
                         case "task_started":
-                            return now - lastWrite <= inactiveAfter;
+                            return true;
                         case "task_complete":
                         case "task_canceled":
                         case "task_cancelled":

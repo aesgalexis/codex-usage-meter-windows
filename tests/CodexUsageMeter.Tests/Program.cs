@@ -54,7 +54,7 @@ const string twoWindowsEvent = """
 var twoWindows = CodexRateLimitParser.Parse(twoWindowsEvent);
 Assert(twoWindows?.Windows.Count == 2, "Primary y secondary deben conservarse simultáneamente.");
 Assert(twoWindows?.WindowMinutes == 10080 && twoWindows.AvailablePercent == 30, "La ventana más restrictiva debe ser el indicador efectivo.");
-Assert(twoWindows?.WeeklyWindow.WindowMinutes == 10080 && twoWindows.WeeklyWindow.UsedPercent == 70,
+Assert(twoWindows?.WeeklyWindow?.WindowMinutes == 10080 && twoWindows.WeeklyWindow?.UsedPercent == 70,
     "La barra semanal debe usar la ventana de siete días.");
 Assert(twoWindows?.FiveHourWindow?.WindowMinutes == 300 && twoWindows.FiveHourWindow.UsedPercent == 20,
     "El marcador debe usar la ventana de cinco horas.");
@@ -65,7 +65,7 @@ const string windowsWithoutDurationsEvent = """
 var windowsWithoutDurations = CodexRateLimitParser.Parse(windowsWithoutDurationsEvent);
 Assert(windowsWithoutDurations?.FiveHourWindow?.UsedPercent == 18,
     "Primary sin duración debe seguir identificándose como límite de cinco horas.");
-Assert(windowsWithoutDurations?.WeeklyWindow.UsedPercent == 64,
+Assert(windowsWithoutDurations?.WeeklyWindow?.UsedPercent == 64,
     "Secondary sin duración debe seguir identificándose como límite semanal.");
 
 const string reserveLimitEvent = """
@@ -96,7 +96,7 @@ var creditsNotYetInUse = creditSnapshot with
     RateLimitWindows =
     [
         new UsageWindow(99, creditSnapshot.ResetsAt, 300),
-        new UsageWindow(31, creditSnapshot.WeeklyWindow.ResetsAt, 10080)
+        new UsageWindow(31, creditSnapshot.WeeklyWindow!.ResetsAt, 10080)
     ]
 };
 Assert(!creditsNotYetInUse.IsUsingCredits,
@@ -184,7 +184,7 @@ finally
 }
 
 var observedAt = DateTimeOffset.Parse("2026-08-02T10:00:00Z");
-var first = new UsageSnapshot(49, observedAt.AddHours(1), 60, "plus", 0, observedAt);
+var first = new UsageSnapshot(49, observedAt.AddHours(1), 10080, "plus", 0, observedAt);
 var crossed = first with { UsedPercent = 76, ObservedAt = observedAt.AddMinutes(1) };
 var defaultNotifications = NotificationOptions.Default;
 Assert(!defaultNotifications.NotifyOnPercentChange &&
@@ -416,6 +416,10 @@ using (var trayIcon = new StableNotifyIcon(Guid.NewGuid()))
 }
 
 await AppUpdateChecks.RunAsync();
+await DataRegressionChecks.RunAsync();
+TrayProtocolChecks.Run();
+UpdateCleanupChecks.Run();
+DisplayRegressionChecks.Run();
 if (args.Contains("--window-checks")) UsageBarWindowChecks.Run();
 Console.WriteLine("Todas las pruebas han pasado.");
 return;

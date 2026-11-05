@@ -70,6 +70,8 @@ public sealed class UsageApplication : System.Windows.Application
         AppText.SetLanguage(language);
         _settings.Language = AppText.CurrentLanguage;
         _settingsStore.Save(_settings);
+        UpdateDownloadCleanup.RemoveStaleDownloads(
+            Path.Combine(Path.GetTempPath(), "CodexUsageMeter-updates"), DateTimeOffset.UtcNow);
         if (!_settings.WidgetEnabled) _settings.WidgetPinned = false;
 
         _notifyIcon.Text = AppText.Get("Searching");
@@ -317,6 +319,7 @@ public sealed class UsageApplication : System.Windows.Application
             _notifyIcon.ContextMenuStrip = BuildMenu();
             previous?.Dispose();
             if (_settings.UsageBarEnabled) ShowUsageBars();
+            RecoverPinnedWidgetPosition();
         });
     }
 
@@ -449,17 +452,18 @@ public sealed class UsageApplication : System.Windows.Application
     {
         var weeklyWindow = snapshot.WeeklyWindow;
         var trayWindow = snapshot.FiveHourWindow ?? weeklyWindow;
-        var available = (int)Math.Round(weeklyWindow.AvailablePercent);
-        _statusItem.Text = AppText.Get("Available", available, weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
+        _statusItem.Text = weeklyWindow is null
+            ? AppText.Get("WeeklyUnavailable")
+            : AppText.Get("Available", Math.Round(weeklyWindow.AvailablePercent), weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
         if (stale) _statusItem.Text += $" · {staleReason ?? AppText.Get("Stale")}";
-        _resetItem.Text = weeklyWindow.ResetsAt is { } reset
+        _resetItem.Text = weeklyWindow?.ResetsAt is { } reset
             ? AppText.Get("ResetAt", reset.ToLocalTime().ToString("g", AppText.Culture))
             : AppText.Get("NoReset");
         _notifyIcon.Text = TruncateTooltip(AppText.Get(
             "TrayTooltip",
-            Math.Round(trayWindow.AvailablePercent),
-            Math.Round(weeklyWindow.AvailablePercent)) + (stale ? $" · {AppText.Get("Stale")}" : string.Empty));
-        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(trayWindow.AvailablePercent, snapshot.IsUsingCredits));
+            FormatTrayPercent(snapshot.FiveHourWindow),
+            FormatTrayPercent(weeklyWindow)) + (stale ? $" · {AppText.Get("Stale")}" : string.Empty));
+        _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(trayWindow?.AvailablePercent, snapshot.IsUsingCredits));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(snapshot, staleReason, stale);
     }
@@ -475,7 +479,7 @@ public sealed class UsageApplication : System.Windows.Application
 
     private void ShowUsageNotification(UsageNotification? notification, UsageSnapshot snapshot)
     {
-        if (notification is null)
+        if (notification is null || snapshot.WeeklyWindow is not { } weeklyWindow)
         {
             return;
         }
@@ -486,7 +490,6 @@ public sealed class UsageApplication : System.Windows.Application
             UsageNotificationKind.LimitReset => AppText.Get("LimitReset"),
             _ => AppText.Get("UsageChanged")
         };
-        var weeklyWindow = snapshot.WeeklyWindow;
         _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", weeklyWindow.AvailablePercent.ToString("0", AppText.Culture), weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
         _notifyIcon.ShowBalloonTip(5000);
     }
@@ -500,10 +503,7 @@ public sealed class UsageApplication : System.Windows.Application
             _sessionWatcher = null;
         }
 
-        var sessionsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".codex",
-            "sessions");
+        var sessionsPath = Path.Combine(CodexHomeResolver.Resolve(), "sessions");
         if (!Directory.Exists(sessionsPath))
         {
             return;
@@ -617,7 +617,7 @@ public sealed class UsageApplication : System.Windows.Application
     private void EnsureRuntimeActivityWatcher()
     {
         if (_runtimeActivityWatcher is not null) return;
-        var codexHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+        var codexHome = CodexHomeResolver.Resolve();
         if (!Directory.Exists(codexHome)) return;
 
         try
@@ -677,16 +677,17 @@ public sealed class UsageApplication : System.Windows.Application
             ShowUsageBalloon();
         }
         else if (_flyout?.IsVisible == true && !_flyout.IsPinned) _flyout.Hide();
-        else ShowFlyout(false, true);
+        else ShowFlyout(false, true, new System.Drawing.Point(e.X, e.Y));
     }
 
     private void ShowUsageBalloon()
     {
         if (_latest is { } snapshot)
         {
-            var weeklyWindow = snapshot.WeeklyWindow;
             _notifyIcon.BalloonTipTitle = AppText.Get("BalloonUsage");
-            _notifyIcon.BalloonTipText = AppText.Get("AvailableUsed", weeklyWindow.AvailablePercent.ToString("0", AppText.Culture), weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture));
+            _notifyIcon.BalloonTipText = snapshot.WeeklyWindow is { } weeklyWindow
+                ? AppText.Get("AvailableUsed", weeklyWindow.AvailablePercent.ToString("0", AppText.Culture), weeklyWindow.UsedPercent.ToString("0.#", AppText.Culture))
+                : AppText.Get("WeeklyUnavailable");
         }
         else
         {
@@ -696,7 +697,7 @@ public sealed class UsageApplication : System.Windows.Application
         _notifyIcon.ShowBalloonTip(4000);
     }
 
-    private void ShowFlyout(bool pinned, bool activate = false)
+    private void ShowFlyout(bool pinned, bool activate = false, System.Drawing.Point? interactionPosition = null)
     {
         if (!_settings.WidgetEnabled) return;
         EnsureFlyout();
@@ -712,10 +713,11 @@ public sealed class UsageApplication : System.Windows.Application
         }
         else
         {
-            PositionFlyoutAtTray();
+            PositionFlyoutAtTray(interactionPosition);
         }
 
         _flyout.ShowWithActivation(activate);
+        RecoverPinnedWidgetPosition();
         if (_flyout.IsCompact) _flyout.PlayShine(force: true);
         if (_flyout.IsPinned && !hasSavedPosition) SaveWidgetPosition();
     }
@@ -889,19 +891,26 @@ public sealed class UsageApplication : System.Windows.Application
         _usageBars.Clear();
     }
 
-    private void PositionFlyoutAtTray()
+    private void PositionFlyoutAtTray(System.Drawing.Point? interactionPosition = null)
     {
         if (_flyout is null) return;
+        var cursorPosition = interactionPosition ?? _notifyIcon.GetPhysicalCursorPosition();
         var iconBounds = _notifyIcon.TryGetBounds(out var bounds)
             ? bounds
-            : new Rectangle(Forms.Cursor.Position, new System.Drawing.Size(1, 1));
-        var cursorPosition = _notifyIcon.GetPhysicalCursorPosition();
+            : new Rectangle(cursorPosition, new System.Drawing.Size(1, 1));
         var screen = Forms.Screen.FromPoint(cursorPosition);
         if (!Forms.Screen.FromRectangle(iconBounds).DeviceName.Equals(screen.DeviceName, StringComparison.OrdinalIgnoreCase))
         {
             iconBounds = new Rectangle(cursorPosition, new System.Drawing.Size(1, 1));
         }
         NativeWindowPositioning.PositionFlyout(_flyout, iconBounds, screen.WorkingArea, marginDip: 8);
+    }
+
+    private void RecoverPinnedWidgetPosition()
+    {
+        if (_flyout is not { IsPinned: true, IsVisible: true }) return;
+        if (NativeWindowPositioning.RecoverVisiblePosition(_flyout, Forms.Screen.AllScreens.Select(screen => screen.WorkingArea)))
+            SaveWidgetPosition();
     }
 
     private static void PositionLineAboveTaskbar(UsageFlyoutWindow usageBar, Forms.Screen screen)
@@ -932,6 +941,10 @@ public sealed class UsageApplication : System.Windows.Application
     }
 
     private static string TruncateTooltip(string value) => value[..Math.Min(value.Length, 63)];
+
+    private static string FormatTrayPercent(UsageWindow? window) => window is null
+        ? "—"
+        : window.AvailablePercent.ToString("0", AppText.Culture) + "%";
 
     private static void OpenTrayVisibilitySettings()
     {
@@ -1033,11 +1046,36 @@ internal static class NativeWindowPositioning
         var margin = (int)Math.Round(marginDip * scale);
         var left = anchor.Left + anchor.Width / 2 - width / 2;
         var top = anchor.Top - height - margin;
-        left = Math.Clamp(left, workingArea.Left + margin, workingArea.Right - width - margin);
-        top = Math.Clamp(top, workingArea.Top + margin, workingArea.Bottom - height - margin);
+        left = Math.Clamp(left, workingArea.Left + margin, Math.Max(workingArea.Left + margin, workingArea.Right - width - margin));
+        top = Math.Clamp(top, workingArea.Top + margin, Math.Max(workingArea.Top + margin, workingArea.Bottom - height - margin));
 
         var handle = new WindowInteropHelper(window).EnsureHandle();
         SetWindowPos(handle, IntPtr.Zero, left, top, width, height, SwpNoZOrder | SwpNoActivate | SwpNoOwnerZOrder);
+    }
+
+    internal static bool IsWidgetReachable(Rectangle bounds, IEnumerable<Rectangle> workingAreas)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0) return false;
+        var dragArea = new Rectangle(bounds.Left, bounds.Top, bounds.Width, Math.Min(32, bounds.Height));
+        return workingAreas.Any(area =>
+        {
+            var visible = Rectangle.Intersect(dragArea, area);
+            return visible.Width >= Math.Min(64, bounds.Width) && visible.Height >= dragArea.Height;
+        });
+    }
+
+    internal static bool RecoverVisiblePosition(Window window, IEnumerable<Rectangle> workingAreas)
+    {
+        var areas = workingAreas.ToArray();
+        var handle = new WindowInteropHelper(window).EnsureHandle();
+        if (areas.Length == 0 || !GetWindowRect(handle, out var nativeBounds)) return false;
+        var bounds = nativeBounds.ToRectangle();
+        if (IsWidgetReachable(bounds, areas)) return false;
+        var nearest = areas.MinBy(area =>
+            Math.Pow((double)area.Left + area.Width / 2d - bounds.Left - bounds.Width / 2d, 2) +
+            Math.Pow((double)area.Top + area.Height / 2d - bounds.Top - bounds.Height / 2d, 2));
+        PositionFlyout(window, new Rectangle(nearest.Right - 8, nearest.Bottom, 1, 1), nearest, 8);
+        return true;
     }
 
     private static uint GetMonitorDpi(IntPtr monitor)
@@ -1061,6 +1099,10 @@ internal static class NativeWindowPositioning
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetWindowRect(IntPtr window, out StableNotifyIcon.NativeIconRect rectangle);
 
     [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);

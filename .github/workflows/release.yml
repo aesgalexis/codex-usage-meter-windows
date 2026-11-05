@@ -16,11 +16,27 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
+      - name: Validate release version
+        id: version
+        shell: pwsh
+        env:
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+        run: |
+          $project = [xml](Get-Content 'src/CodexUsageMeter.App/CodexUsageMeter.App.csproj' -Raw)
+          $version = $project.SelectSingleNode('//Version').InnerText
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid project version: $version" }
+          if ($env:RELEASE_REF_TYPE -eq 'tag' -and $env:RELEASE_REF_NAME -ne "v$version") {
+            throw "Tag $env:RELEASE_REF_NAME does not match project version $version"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
       - name: Verify
         run: |
           dotnet build CodexUsageMeter.sln --configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet run --project tests/CodexUsageMeter.Tests/CodexUsageMeter.Tests.csproj --configuration Release --no-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Publish self-contained app
         run: >-
           dotnet publish src/CodexUsageMeter.App/CodexUsageMeter.App.csproj
@@ -28,8 +44,10 @@ jobs:
           --output artifacts/win-x64
       - name: Build Inno Setup installer
         shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
+          $version = $env:RELEASE_VERSION
           $sourceDir = (Resolve-Path "artifacts/win-x64").Path
           $outputDir = (Resolve-Path "artifacts").Path
           $isccCommand = Get-Command iscc.exe -ErrorAction SilentlyContinue
@@ -40,26 +58,18 @@ jobs:
       - name: Test silent install, automatic update and uninstall
         timeout-minutes: 5
         shell: pwsh
-        run: |
-          $installer = (Resolve-Path "artifacts/CodexUsageMeter-Setup-win-x64.exe").Path
-          $testDir = Join-Path $env:RUNNER_TEMP "CodexUsageMeterInstallTest"
-          $install = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$testDir`"" -WindowStyle Hidden -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "Installer exited with $($install.ExitCode)" }
-          $installedApp = Join-Path $testDir "CodexUsageMeter.exe"
-          if (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) { throw "Installed executable not found" }
-          $beforeUpdate = Start-Process -FilePath $installedApp -WindowStyle Hidden -PassThru
-          Start-Sleep -Seconds 2
-          $update = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/SP-', '/NORESTART', '/CLOSEAPPLICATIONS', '/FORCECLOSEAPPLICATIONS', '/NORESTARTAPPLICATIONS', '/AUTOMATICUPDATE=1', "/DIR=`"$testDir`"", "/RESTARTAPP=`"$installedApp`"" -WindowStyle Hidden -PassThru
-          # Wait only for Setup; its relaunched tray app is meant to keep running.
-          if (-not $update.WaitForExit(120000)) { throw "Automatic installer timed out" }
-          if ($update.ExitCode -ne 0) { throw "Automatic update exited with $($update.ExitCode)" }
-          Start-Sleep -Seconds 2
-          $afterUpdate = @(Get-Process CodexUsageMeter -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $installedApp })
-          if ($afterUpdate.Count -ne 1 -or $afterUpdate[0].Id -eq $beforeUpdate.Id) { throw "Automatic update did not close and reopen the app" }
-          $afterUpdate | Stop-Process
-          $uninstaller = Join-Path $testDir "unins000.exe"
-          $uninstall = Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -WindowStyle Hidden -Wait -PassThru
-          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller exited with $($uninstall.ExitCode)" }
+        run: >-
+          ./tools/Test-Installer.ps1
+          -InstallerPath artifacts/CodexUsageMeter-Setup-win-x64.exe
+          -PortableExecutablePath artifacts/win-x64/CodexUsageMeter.exe
+      - name: Prepare WinGet manifests
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: >-
+          ./tools/New-WinGetManifest.ps1
+          -Version $env:RELEASE_VERSION
+          -InstallerPath artifacts/CodexUsageMeter-Setup-win-x64.exe
+          -OutputDirectory artifacts/winget
       - name: Create ZIP
         shell: pwsh
         run: Compress-Archive -Path artifacts/win-x64/* -DestinationPath artifacts/CodexUsageMeter-win-x64.zip
@@ -69,6 +79,7 @@ jobs:
           path: |
             artifacts/CodexUsageMeter-win-x64.zip
             artifacts/CodexUsageMeter-Setup-win-x64.exe
+            artifacts/winget/**
       - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         env:

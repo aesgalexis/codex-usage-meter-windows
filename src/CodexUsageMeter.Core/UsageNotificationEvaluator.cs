@@ -14,7 +14,7 @@ public static class UsageNotificationEvaluator
 
         var previousWindow = previous.WeeklyWindow;
         var currentWindow = current.WeeklyWindow;
-        if (previousWindow.WindowMinutes != currentWindow.WindowMinutes)
+        if (previousWindow is null || currentWindow is null)
         {
             return null;
         }
