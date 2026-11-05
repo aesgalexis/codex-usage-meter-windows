@@ -22,6 +22,8 @@ public sealed class UsageFlyoutWindow : Window
     private readonly TextBlock _details = new();
     private readonly TextBlock _reset = new();
     private readonly TextBlock _credits = new();
+    private readonly TextBlock _resetCredits = new();
+    private string _creditBalanceText = AppText.Get("NoCredits");
     private readonly ProgressBar _progress = new();
     private readonly Button _pin = new();
     private readonly Button _compactPin = new();
@@ -181,6 +183,8 @@ public sealed class UsageFlyoutWindow : Window
             _details.Text = error ?? AppText.Get("WaitingTask");
             _reset.Text = AppText.Get("AutoUpdate");
             _credits.Text = AppText.Get("NoCredits");
+            _creditBalanceText = AppText.Get("NoCredits");
+            UpdateBalanceTooltip();
             _progress.Value = 0;
             _progress.Foreground = new SolidColorBrush(Color.FromRgb(120, 130, 140));
             _availablePercent = 0;
@@ -213,6 +217,8 @@ public sealed class UsageFlyoutWindow : Window
         var creditsText = snapshot.CreditBalance is { } balance
             ? AppText.Get("Credits", balance.ToString("0.##", AppText.Culture))
             : AppText.Get("NoCredits");
+        _creditBalanceText = creditsText;
+        UpdateBalanceTooltip();
         _credits.Text = stale ? $"{AppText.Get("Stale")}: {age} · {creditsText}" : $"{age} · {creditsText}";
         _credits.ToolTip = stale ? error : null;
         _progress.Value = weeklyWindow?.AvailablePercent ?? 0;
@@ -238,6 +244,18 @@ public sealed class UsageFlyoutWindow : Window
         UpdateCompactFill();
         UpdateLineFill();
     }
+
+    public void UpdateResetCredits(int? available, bool stale = false)
+    {
+        var text = available is >= 0
+            ? AppText.Get(available == 1 ? "OneReset" : "ManyResets", available)
+            : AppText.Get("ResetsUnknown");
+        _resetCredits.Text = stale ? $"{AppText.Get("Stale")}: {text}" : text;
+        _resetCredits.ToolTip = _resetCredits.Text;
+        UpdateBalanceTooltip();
+    }
+
+    private void UpdateBalanceTooltip() => _compactCard.ToolTip = $"{_resetCredits.Text}\n{_creditBalanceText}";
 
     private void SetModelIcon(string? model)
     {
@@ -355,8 +373,13 @@ public sealed class UsageFlyoutWindow : Window
         _details.Foreground = new SolidColorBrush(Color.FromRgb(190, 194, 202)); _details.FontSize = 12;
         _reset.Foreground = new SolidColorBrush(Color.FromRgb(155, 160, 170)); _reset.FontSize = 11; _reset.TextAlignment = TextAlignment.Right;
         _credits.Foreground = new SolidColorBrush(Color.FromRgb(155, 160, 170)); _credits.FontSize = 11; _credits.TextAlignment = TextAlignment.Right; _credits.Margin = new Thickness(0, 2, 0, 0);
+        _resetCredits.Text = AppText.Get("ResetsUnknown");
+        _resetCredits.Foreground = new SolidColorBrush(Color.FromRgb(155, 160, 170));
+        _resetCredits.FontSize = 11; _resetCredits.Margin = new Thickness(0, 2, 6, 0);
+        _resetCredits.TextTrimming = TextTrimming.CharacterEllipsis;
         footer.Children.Add(_details); Grid.SetColumn(_reset, 1); footer.Children.Add(_reset);
         Grid.SetColumn(_credits, 1); Grid.SetRow(_credits, 1); footer.Children.Add(_credits);
+        Grid.SetRow(_resetCredits, 1); footer.Children.Add(_resetCredits);
         Grid.SetRow(footer, 3); root.Children.Add(footer);
 
         var card = new Border { Background = new SolidColorBrush(Color.FromArgb(248, 31, 34, 40)), BorderBrush = new SolidColorBrush(Color.FromRgb(68, 72, 82)), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(13), Child = root };

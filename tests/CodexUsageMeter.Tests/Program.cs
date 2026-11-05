@@ -417,6 +417,7 @@ using (var trayIcon = new StableNotifyIcon(Guid.NewGuid()))
 
 await AppUpdateChecks.RunAsync();
 await DataRegressionChecks.RunAsync();
+await ResetCreditChecks.RunAsync();
 TrayProtocolChecks.Run();
 UpdateCleanupChecks.Run();
 DisplayRegressionChecks.Run();

@@ -19,6 +19,7 @@ internal static class UsageBarWindowChecks
                 bar = new UsageFlyoutWindow { Left = -32000, Top = -32000 };
                 bar.SetPinned(true);
                 CheckMissingWeeklyData(bar);
+                CheckResetCredits(bar);
                 bar.SetMode(compact: false, line: true);
                 if (bar.ShowActivated || bar.Focusable)
                     throw new InvalidOperationException("La línea de uso no debe solicitar activación ni foco.");
@@ -117,6 +118,33 @@ internal static class UsageBarWindowChecks
 
     private static T GetField<T>(UsageFlyoutWindow window, string name) =>
         (T)typeof(UsageFlyoutWindow).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(window)!;
+
+    private static void CheckResetCredits(UsageFlyoutWindow window)
+    {
+        var originalLanguage = AppText.CurrentLanguage;
+        try
+        {
+            foreach (var language in new[] { AppText.English, AppText.Spanish })
+            {
+                AppText.SetLanguage(language);
+                foreach (var available in new int?[] { null, 0, 1, 3 })
+                {
+                    window.UpdateResetCredits(available);
+                    var expected = available is null ? AppText.Get("ResetsUnknown")
+                        : AppText.Get(available == 1 ? "OneReset" : "ManyResets", available);
+                    var text = GetField<System.Windows.Controls.TextBlock>(window, "_resetCredits");
+                    if (text.Text != expected) throw new InvalidOperationException("The card must distinguish unknown, zero, one and multiple resets in both languages.");
+                    var compact = GetField<System.Windows.Controls.Border>(window, "_compactCard");
+                    if (!compact.ToolTip.ToString()!.Contains(expected, StringComparison.Ordinal))
+                        throw new InvalidOperationException("The compact widget must expose the reset count in its tooltip.");
+                }
+                window.UpdateResetCredits(3, stale: true);
+                if (!GetField<System.Windows.Controls.TextBlock>(window, "_resetCredits").Text.Contains(AppText.Get("Stale"), StringComparison.Ordinal))
+                    throw new InvalidOperationException("An unavailable refresh must label a retained count as stale.");
+            }
+        }
+        finally { AppText.SetLanguage(originalLanguage); window.UpdateResetCredits(null); }
+    }
 
     private static void CheckWidgetRecovery(UsageFlyoutWindow window, IntPtr foreground)
     {

@@ -25,6 +25,7 @@ public sealed class UsageApplication : System.Windows.Application
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(30);
     private static readonly TimeSpan TaskInactiveAfter = TimeSpan.FromMinutes(10);
     private readonly IUsageProvider _provider = new CodexSessionUsageProvider();
+    private readonly IResetCreditProvider _resetCreditProvider = new CodexResetCreditProvider();
     private readonly AppSettingsStore _settingsStore = new();
     private readonly DispatcherTimer _refreshTimer = new() { Interval = TimeSpan.FromSeconds(30) };
     private readonly DispatcherTimer _fileChangeTimer = new() { Interval = TimeSpan.FromMilliseconds(750) };
@@ -56,6 +57,10 @@ public sealed class UsageApplication : System.Windows.Application
     private bool _isRefreshing;
     private bool _refreshPending;
     private bool _latestIsStale;
+    private int? _availableResets;
+    private bool _resetCreditsStale;
+    private bool _readingResetCredits;
+    private DateTimeOffset _lastResetCreditAttempt = DateTimeOffset.MinValue;
     private UsageFailureKind _latestFailureKind;
     private DateTimeOffset _runtimeActivityUntil = DateTimeOffset.MinValue;
     private AboutWindow? _aboutWindow;
@@ -346,6 +351,7 @@ public sealed class UsageApplication : System.Windows.Application
         _aboutWindow?.Close();
         _aboutWindow = null;
         _flyout?.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
+        _flyout?.UpdateResetCredits(_availableResets, _resetCreditsStale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(_latest, LocalizeFailure(_latestFailureKind), _latestIsStale);
         _ = RefreshAsync();
     }
@@ -439,6 +445,7 @@ public sealed class UsageApplication : System.Windows.Application
         {
             EnsureSessionWatcher();
             EnsureRuntimeActivityWatcher();
+            _ = RefreshResetCreditsAsync();
             _isRefreshing = false;
             if (_refreshPending)
             {
@@ -446,6 +453,24 @@ public sealed class UsageApplication : System.Windows.Application
                 _ = Dispatcher.BeginInvoke(new Action(() => _ = RefreshAsync()));
             }
         }
+    }
+
+    private async Task RefreshResetCreditsAsync()
+    {
+        if (_flyout is not { IsVisible: true } || _readingResetCredits ||
+            DateTimeOffset.UtcNow - _lastResetCreditAttempt < TimeSpan.FromMinutes(1)) return;
+        _readingResetCredits = true;
+        _lastResetCreditAttempt = DateTimeOffset.UtcNow;
+        try
+        {
+            var available = await _resetCreditProvider.GetAvailableAsync(_updateCancellation.Token);
+            if (_updateCancellation.IsCancellationRequested) return;
+            if (available is not null) _availableResets = available;
+            _resetCreditsStale = available is null && _availableResets is not null;
+            _flyout?.UpdateResetCredits(_availableResets, _resetCreditsStale);
+        }
+        catch (OperationCanceledException) when (_updateCancellation.IsCancellationRequested) { }
+        finally { _readingResetCredits = false; }
     }
 
     private void UpdateUsageDisplay(UsageSnapshot snapshot, bool stale, string? staleReason = null)
@@ -465,6 +490,7 @@ public sealed class UsageApplication : System.Windows.Application
             FormatTrayPercent(weeklyWindow)) + (stale ? $" · {AppText.Get("Stale")}" : string.Empty));
         _notifyIcon.Icon = ReplaceIcon(TrayIconFactory.Create(trayWindow?.AvailablePercent, snapshot.IsUsingCredits));
         _flyout?.UpdateUsage(snapshot, staleReason, stale);
+        _flyout?.UpdateResetCredits(_availableResets, _resetCreditsStale);
         foreach (var usageBar in _usageBars.Values) usageBar.UpdateUsage(snapshot, staleReason, stale);
     }
 
@@ -717,6 +743,8 @@ public sealed class UsageApplication : System.Windows.Application
         }
 
         _flyout.ShowWithActivation(activate);
+        _flyout.UpdateResetCredits(_availableResets, _resetCreditsStale);
+        _ = RefreshResetCreditsAsync();
         RecoverPinnedWidgetPosition();
         if (_flyout.IsCompact) _flyout.PlayShine(force: true);
         if (_flyout.IsPinned && !hasSavedPosition) SaveWidgetPosition();
