@@ -73,6 +73,7 @@ function Assert-Condition([bool]$Condition, [string]$Message) {
 function Wait-Setup([string]$Executable, [string[]]$SetupArguments, [switch]$WaitForChildren) {
     # Uninstall delegates to a temporary child process. Wait for that tree before
     # checking registry cleanup; Setup instead relaunches a long-running tray app.
+    Write-Output "Starting $(Split-Path -Leaf $Executable); wait for children: $WaitForChildren"
     $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -Wait:$WaitForChildren -PassThru
     try {
         # -Wait also waits for the relaunched tray app, which is meant to keep running.
@@ -124,10 +125,12 @@ function Invoke-Uninstallation {
 }
 
 try {
+    Write-Output 'Checking silent installation with startup disabled.'
     Invoke-Installation
     Assert-Condition ($null -eq (Get-StartupCommand)) 'Installation unexpectedly enabled startup.'
     $checks.Add('Silent installation preserves disabled startup.')
 
+    Write-Output 'Checking installed update and relaunch with startup enabled.'
     Set-StartupCommand $installedApp
     $beforeUpdate = Start-Process -FilePath $installedApp -WindowStyle Hidden -PassThru
     try {
@@ -139,10 +142,12 @@ try {
     Assert-Condition ((Get-StartupCommand) -ceq ('"{0}"' -f $installedApp)) 'Installed update lost startup registration.'
     $checks.Add('Installed update closes and reopens the app and preserves startup.')
 
+    Write-Output 'Checking uninstall and startup cleanup.'
     Invoke-Uninstallation
     Assert-Condition ($null -eq (Get-StartupCommand)) ("Uninstall left startup entry: $(Get-StartupCommand); requested app: $installedApp" )
     $checks.Add('Uninstall removes its own startup entry.')
 
+    Write-Output 'Checking portable-to-installed startup migration.'
     New-Item -ItemType Directory -Path $portableDirectory | Out-Null
     Copy-Item -LiteralPath $portableSource -Destination $portableApp
     Set-StartupCommand $portableApp
@@ -152,6 +157,7 @@ try {
     Assert-Condition (Test-Path -LiteralPath $portableApp -PathType Leaf) 'Portable update removed the original portable file.'
     $checks.Add('Portable-to-installed update migrates enabled startup and retains the portable copy.')
 
+    Write-Output 'Checking preservation of another copy''s startup entry.'
     Set-StartupCommand $otherPortableApp
     $beforeUpdateId = @(Get-InstalledProcesses)[0].Id
     Invoke-Installation $installedApp
