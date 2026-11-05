@@ -70,16 +70,28 @@ function Assert-Condition([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
 
-function Wait-Setup([string]$Executable, [string[]]$SetupArguments, [switch]$WaitForChildren) {
-    # Uninstall delegates to a temporary child process. Wait for that tree before
-    # checking registry cleanup; Setup instead relaunches a long-running tray app.
-    $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -Wait:$WaitForChildren -PassThru
+function Wait-Setup([string]$Executable, [string[]]$SetupArguments) {
+    Write-Output "Starting $(Split-Path -Leaf $Executable)."
+    $process = Start-Process -FilePath $Executable -ArgumentList $SetupArguments -WindowStyle Hidden -PassThru
     try {
-        # -Wait also waits for the relaunched tray app, which is meant to keep running.
+        # Start-Process -Wait has no timeout and can wait for descendants indefinitely.
         if (-not $process.WaitForExit(120000)) { throw 'Setup process timed out.' }
         if ($process.ExitCode -ne 0) { throw "Setup exited with $($process.ExitCode)." }
     }
     finally { $process.Dispose() }
+}
+
+function Wait-Uninstalled {
+    # Inno's launcher delegates to a temporary child. Wait for the actual removal
+    # rather than an unbounded process-tree wait, before reading registry state.
+    $uninstaller = Join-Path $installDirectory 'unins000.exe'
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
+    while ((Test-Path -LiteralPath $installedApp) -or (Test-Path -LiteralPath $uninstaller)) {
+        if ([DateTime]::UtcNow -ge $deadline) { throw 'Uninstall did not remove the application and uninstaller within 30 seconds.' }
+        Start-Sleep -Milliseconds 100
+    }
+    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($uninstallKeyPath)
+    if ($key) { $key.Dispose(); throw 'Uninstall left its registration behind.' }
 }
 
 function Get-InstalledProcesses {
@@ -119,15 +131,18 @@ function Invoke-Installation([string]$RestartApp = '') {
 function Invoke-Uninstallation {
     Stop-TestProcesses
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
-    Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WaitForChildren
+    Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+    Wait-Uninstalled
     Assert-Condition (-not (Test-Path -LiteralPath $installedApp -PathType Leaf)) 'Uninstall left the application executable behind.'
 }
 
 try {
+    Write-Output 'Checking silent installation with startup disabled.'
     Invoke-Installation
     Assert-Condition ($null -eq (Get-StartupCommand)) 'Installation unexpectedly enabled startup.'
     $checks.Add('Silent installation preserves disabled startup.')
 
+    Write-Output 'Checking installed update and relaunch with startup enabled.'
     Set-StartupCommand $installedApp
     $beforeUpdate = Start-Process -FilePath $installedApp -WindowStyle Hidden -PassThru
     try {
@@ -139,10 +154,12 @@ try {
     Assert-Condition ((Get-StartupCommand) -ceq ('"{0}"' -f $installedApp)) 'Installed update lost startup registration.'
     $checks.Add('Installed update closes and reopens the app and preserves startup.')
 
+    Write-Output 'Checking uninstall and startup cleanup.'
     Invoke-Uninstallation
     Assert-Condition ($null -eq (Get-StartupCommand)) ("Uninstall left startup entry: $(Get-StartupCommand); requested app: $installedApp" )
     $checks.Add('Uninstall removes its own startup entry.')
 
+    Write-Output 'Checking portable-to-installed startup migration.'
     New-Item -ItemType Directory -Path $portableDirectory | Out-Null
     Copy-Item -LiteralPath $portableSource -Destination $portableApp
     Set-StartupCommand $portableApp
@@ -152,6 +169,7 @@ try {
     Assert-Condition (Test-Path -LiteralPath $portableApp -PathType Leaf) 'Portable update removed the original portable file.'
     $checks.Add('Portable-to-installed update migrates enabled startup and retains the portable copy.')
 
+    Write-Output 'Checking preservation of another copy''s startup entry.'
     Set-StartupCommand $otherPortableApp
     $beforeUpdateId = @(Get-InstalledProcesses)[0].Id
     Invoke-Installation $installedApp
@@ -167,7 +185,10 @@ finally {
     Stop-TestProcesses
     $uninstaller = Join-Path $installDirectory 'unins000.exe'
     if (Test-Path -LiteralPath $uninstaller -PathType Leaf) {
-        try { Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -WaitForChildren }
+        try {
+            Wait-Setup $uninstaller @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART')
+            Wait-Uninstalled
+        }
         catch { Write-Warning "Test uninstall cleanup failed: $_" }
     }
     $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($startupKeyPath, $true)

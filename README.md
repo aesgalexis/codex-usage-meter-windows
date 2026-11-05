@@ -6,7 +6,7 @@
 
 See how much Codex usage you have left without interrupting your work. Codex Usage Meter puts your latest five-hour and weekly availability in the Windows tray, with optional desktop widgets and a thin usage bar above the taskbar.
 
-It reads local Codex session data without account credentials, analytics, or telemetry from this app.
+It reads usage from local Codex sessions and available resets through your installed Codex client. The meter requests no password or API key and includes no analytics or telemetry.
 
 | Normal widget | Compact widget |
 | --- | --- |
@@ -49,7 +49,7 @@ Codex is not an installer dependency. The app can start without it and waits for
 
 ## Features
 
-- **Limits at a glance:** five-hour and weekly availability, reset countdowns, and locally reported credit balance.
+- **Limits at a glance:** five-hour and weekly availability, reset countdowns, credit balance, and available reset credits.
 - **Flexible displays:** normal or compact widgets you can pin and drag, plus an independent taskbar usage bar with display and thickness controls.
 - **Responsive updates:** near-immediate session-change refreshes, a 30-second fallback refresh, and local activity shine effects.
 - **Weekly notifications:** configurable integer percentage changes, 50/75/90% usage thresholds, and resets, with saved preferences. Percentage-change notifications are disabled by default on new installations.
@@ -74,13 +74,15 @@ For keyboard access, press **Windows+B**, use the arrow keys to select the tray 
 | Tray tooltip | Both five-hour and weekly availability. |
 | Tray menu status and reset, left-click balloon | Weekly limit. |
 | Widget percentage and progress | Weekly availability; both widget modes also show the five-hour reset countdown when available. |
-| Normal widget details | Weekly and five-hour reset countdowns, plus the locally reported credit balance. |
+| Normal widget details | Weekly and five-hour reset countdowns, plus separate credit balance and available-reset count. |
 | Taskbar usage bar | Weekly availability, with a white marker for five-hour availability. |
 | Notifications | Weekly percentage changes, usage thresholds, and resets. |
 
 Missing window values appear as **—**. If Codex reports only the five-hour window, weekly displays remain unavailable and weekly notifications wait for weekly data; the app does not substitute the five-hour percentage for a weekly limit.
 
 Green, amber, and red follow each display's limit independently, so the tray icon and weekly bars can have different colors. Indicators turn purple when local data reports a positive credit balance with credits available and an exhausted usage window. Credits are shown as a balance, not as a number of resets.
+
+The normal card shows available resets separately from the credit balance; the compact widget includes both in its tooltip. The count comes from the installed Codex client's current signed-in account through its read-only app-server interface. It refreshes when the card opens and at most once per minute while visible. If Codex or this information is unavailable, the meter shows **Available resets: no data**, rather than zero. A failed refresh marks a retained count as stale. The meter never redeems resets.
 
 ### Widgets and usage bar
 
@@ -129,6 +131,7 @@ Abandoned update download directories older than 24 hours are cleaned up on a la
 
 - No OpenAI password, API key, or ChatGPT token is requested.
 - Session contents and usage values never leave the computer.
+- Reading the available-reset count uses the installed Codex app-server and its existing sign-in. Codex may contact OpenAI to fetch that account metadata. The meter does not read credential files, send local session contents, start a login, or redeem a reset. App-server analytics are disabled for this query. When the card is hidden, no reset-count queries are started.
 - Checking for app updates contacts GitHub only when requested. Downloads come from this project's releases and are verified against the SHA-256 checksum provided by GitHub.
 - This project does not include its own analytics or telemetry.
 - The optional start-with-Windows setting is stored in the current user's standard Windows `Run` registry key.
@@ -159,6 +162,8 @@ The provider compares event timestamps across recent sessions rather than trusti
 Temporary read failures retain the last valid value and mark it as stale. Retained local session files can still provide usage data after Codex is removed; uninstalling Codex does not guarantee the meter returns to an empty state.
 
 The reader is isolated behind an `IUsageProvider` interface so it can be replaced if OpenAI publishes a suitable supported API. See the implemented [localization plan](docs/localization-plan.md) for language resolution and verification details.
+
+Available resets use the separate `IResetCreditProvider`. `CodexResetCreditProvider` starts a hidden `codex app-server --stdio` process, initializes the protocol, reads `account/rateLimits/read`, and closes that process. Only `rateLimitResetCredits.availableCount` is used; the number of detail rows and the currency credit balance are not substitutes. The executable is resolved from `PATH` or the standard Codex desktop installation folders. The query has a ten-second timeout and inherits the same `CODEX_HOME` as the session reader. See the [official app-server protocol](https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt).
 
 ### Build and verify
 

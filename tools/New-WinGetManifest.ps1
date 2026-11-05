@@ -81,10 +81,12 @@ LicenseUrl: $repo/blob/main/LICENSE
 Copyright: Copyright (c) 2026 Codex Usage Meter contributors
 ShortDescription: Windows tray app for viewing local Codex usage limits.
 Description: >-
-  A small, privacy-friendly Windows tray application that reads local Codex
-  usage and task-state metadata. It displays weekly and rolling five-hour
-  limits through widgets, a tray icon and a multi-display taskbar indicator
-  without account credentials, analytics, or telemetry.
+  A small Windows tray application that reads local Codex usage and task-state
+  metadata. It displays weekly and rolling five-hour limits through widgets,
+  a tray icon and a multi-display taskbar indicator. Available resets use the
+  installed, signed-in Codex client, which may contact OpenAI for account
+  metadata. The meter requests no password or API key and includes no analytics
+  or telemetry.
 Moniker: codex-usage-meter
 Tags:
   - codex

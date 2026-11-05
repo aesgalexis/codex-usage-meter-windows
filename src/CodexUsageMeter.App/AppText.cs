@@ -45,7 +45,7 @@ public static class AppText
         ["NoSnapshots"] = "Waiting for a Codex usage snapshot", ["ReadError"] = "Temporary session read error", ["AccessDenied"] = "Codex sessions cannot be accessed",
         ["AboutTagline"] = "Weekly and five-hour Codex usage, at a glance.",
         ["AboutPrivacyTitle"] = "Private by design", ["AboutPrivacy"] = "Runs locally, reads only usage and task-state metadata, and sends no analytics or telemetry.",
-        ["AboutSourceTitle"] = "Local data source", ["AboutSource"] = "Uses session data written by Codex. No password, API key, or account connection is required.",
+        ["AboutSourceTitle"] = "Codex data sources", ["AboutSource"] = "Reads local sessions. Available resets use the installed Codex client's signed-in usage interface, which can contact OpenAI. No password or API key is requested.",
         ["AboutLicenseTitle"] = "Open source", ["AboutLicense"] = "Released under the MIT License. Codex is a product of OpenAI; this community app is independent and unofficial.",
         ["AboutProject"] = "Project on GitHub", ["AboutReleases"] = "Releases", ["AboutIssues"] = "Report an issue",
         ["AboutPowered"] = "Powered by unatomo", ["AboutClose"] = "Close", ["AboutVersion"] = "Version {0}"
@@ -90,7 +90,7 @@ public static class AppText
         ["NoSnapshots"] = "Esperando datos de uso de Codex", ["ReadError"] = "Error temporal al leer las sesiones", ["AccessDenied"] = "No se puede acceder a las sesiones de Codex",
         ["AboutTagline"] = "El uso semanal y de cinco horas de Codex, de un vistazo.",
         ["AboutPrivacyTitle"] = "Privado por diseño", ["AboutPrivacy"] = "Funciona localmente, solo lee metadatos de uso y estado de tareas, y no envía analítica ni telemetría.",
-        ["AboutSourceTitle"] = "Fuente de datos local", ["AboutSource"] = "Usa datos de sesión escritos por Codex. No necesita contraseña, clave API ni conectar una cuenta.",
+        ["AboutSourceTitle"] = "Fuentes de datos de Codex", ["AboutSource"] = "Lee sesiones locales. Los resets disponibles usan la interfaz de uso del cliente Codex ya autenticado, que puede contactar con OpenAI. No pide contraseña ni clave API.",
         ["AboutLicenseTitle"] = "Código abierto", ["AboutLicense"] = "Publicado bajo la licencia MIT. Codex es un producto de OpenAI; esta aplicación comunitaria es independiente y no oficial.",
         ["AboutProject"] = "Proyecto en GitHub", ["AboutReleases"] = "Versiones", ["AboutIssues"] = "Informar de un problema",
         ["AboutPowered"] = "Powered by unatomo", ["AboutClose"] = "Cerrar", ["AboutVersion"] = "Versión {0}"

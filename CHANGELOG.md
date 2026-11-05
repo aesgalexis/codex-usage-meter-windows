@@ -4,6 +4,14 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.8.1] - 2026-11-05
+
+### Fixed
+
+- Shows available reset credits separately from the currency credit balance in the normal usage card, with both values in the compact widget tooltip.
+- Reads the authoritative reset count through the installed Codex client's read-only rate-limit interface, using its existing sign-in. Queries run only while the card is visible, at most once per minute, and never redeem resets.
+- Distinguishes unavailable reset data from zero, marks retained counts as stale after a failed query, and documents the additional account-metadata request.
+
 ## [0.8.0] - 2026-11-05
 
 ### Fixed
