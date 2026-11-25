@@ -4,6 +4,13 @@ All notable changes to this project will be documented here.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.8.2] - 2026-11-25
+
+### Security
+
+- Updates the .NET and Windows Desktop runtimes bundled with the Windows installer and portable build to [.NET 10.0.15](https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.15/10.0.15.md), which includes Microsoft's November 2026 security fixes.
+- Sets .NET SDK 10.0.404 as the minimum build SDK so self-contained builds include the patched runtime.
+
 ## [0.8.1] - 2026-11-05
 
 ### Fixed

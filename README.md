@@ -141,7 +141,7 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## Development
 
-Development requires Git and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Published app requirements and everyday controls are covered in [Installation](#installation) and [Using the app](#using-the-app).
+Development requires Git and a [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) that meets the minimum version in [`global.json`](global.json). Published app requirements and everyday controls are covered in [Installation](#installation) and [Using the app](#using-the-app).
 
 ### How it works
 
